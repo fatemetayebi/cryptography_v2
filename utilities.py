@@ -11,9 +11,33 @@ file_path = os.path.join(folder_path, "user.json")
 USER_FILE_PATH = file_path
 
 
-def hash(password):
-    sha1_hash = hashlib.sha1(password.encode()).hexdigest()
-    return sha1_hash
+def hash(password, salt = None):
+    iterations = 1_000_000
+    if salt is None:
+        salt = base64.b64encode(os.urandom(16)).decode().strip("=")
+    dk = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        int(iterations),
+    )
+
+    hash_b64 = base64.b64encode(dk).decode("utf-8")
+
+    return f"pbkdf2_sha256${iterations}${salt}${hash_b64}"
+
+
+def extract_salt(stored_hash):
+    algorithm, iterations, salt, digest = stored_hash.split("$")
+    return salt
+
+
+def check_password(plain_password, hashed_password):
+    salt = extract_salt(hashed_password)
+    if hashed_password == hash(plain_password, salt=salt):
+        return True
+    else:
+        return False
 
 
 def generate_key_from_password(password, length):
@@ -79,3 +103,71 @@ def generate_user_data(username, password):
       "public_key": public_key,
       "encrypted_private_key": encrypted_private_key,
     }
+
+
+# core/crypto.py
+
+def encrypt_file(file_path, key):
+    """
+    Encrypt a file using the provided key
+    Returns path to the encrypted file
+    """
+    # TODO: Implement file encryption logic
+    # Example implementation:
+    # - Read file content
+    # - Encrypt the content
+    # - Save as new file with .enc extension
+    # - Return output file path
+
+    output_path = file_path + ".enc"
+    # Your encryption logic here
+    return output_path
+
+
+def decrypt_file(file_path, key):
+    """
+    Decrypt a file using the provided key
+    Returns path to the decrypted file
+    """
+    # TODO: Implement file decryption logic
+    # Example implementation:
+    # - Read encrypted file
+    # - Decrypt the content
+    # - Save as new file without .enc extension
+    # - Return output file path
+
+    if file_path.endswith('.enc'):
+        output_path = file_path[:-4]  # Remove .enc extension
+    else:
+        output_path = file_path + ".decrypted"
+
+    # Your decryption logic here
+    return output_path
+
+
+def encrypt_text(text, key):
+    """
+    Encrypt text using the provided key
+    Returns encrypted text as string
+    """
+    # TODO: Implement text encryption logic
+    # Example: Simple XOR encryption (for demonstration only)
+    encrypted = ""
+    for i, char in enumerate(text):
+        key_char = key[i % len(key)]
+        encrypted += chr(ord(char) ^ ord(key_char))
+    return encrypted
+
+
+def decrypt_text(encrypted_text, key):
+    """
+    Decrypt text using the provided key
+    Returns decrypted text as string
+    """
+    # TODO: Implement text decryption logic
+    # Example: Simple XOR decryption (same as encryption)
+    decrypted = ""
+    for i, char in enumerate(encrypted_text):
+        key_char = key[i % len(key)]
+        decrypted += chr(ord(char) ^ ord(key_char))
+    return decrypted

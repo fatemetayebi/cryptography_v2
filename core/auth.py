@@ -2,11 +2,10 @@ import os
 import json
 import hashlib
 from django.db.models.expressions import result
-from utilities import USER_FILE_PATH, USER_FOLDER_PATH, hash, generate_user_data
+from utilities import USER_FILE_PATH, USER_FOLDER_PATH, hash, generate_user_data, check_password
 
 
 def authenticate_user(username, password):
-    result = []
     file_path = USER_FILE_PATH
     folder_path = USER_FOLDER_PATH
     if not os.path.exists(folder_path):
@@ -28,19 +27,19 @@ def authenticate_user(username, password):
             user_found = user
             break
 
-    password = hash(password)
     if user_found:
-        if user_found["password"] == password:
-            result.append({"success":True, "message":"Login successful!"})
+        if check_password(password, user_found["password_hash"]):
+            result = {"success":True, "message":"Login successful!"}
         else:
-            result.append({"success": False, "message": "Something went wrong!"})
+            print(f'password hash mismatch: {user_found["password_hash"]} != {password}')
+            result = {"success": False, "message": "Something went wrong!"}
 
     else:
         users.append(generate_user_data(username, password))
         with open(file_path, "w", encoding="utf-8") as file:
             json.dump(users, file, indent=4)
 
-        result.append({"success":True, "message":"User created - Login successful!"})
+        result = {"success":True, "message":"User created - Login successful!"}
 
     return result
 

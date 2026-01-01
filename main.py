@@ -14,7 +14,7 @@ if __name__ == "__main__":
     app.setFont(font)
 
     login_widget = LoginWidget()
-    login_widget.setWindowTitle("Authentication System")
+    login_widget.setWindowTitle("Crypto System")
     login_widget.resize(400, 300)
     login_widget.show()
 

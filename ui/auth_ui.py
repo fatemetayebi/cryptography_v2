@@ -1,11 +1,10 @@
-
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtCore import QFile, QTextStream
+from PyQt6.QtCore import Qt, QFile, QTextStream
 from core.auth import authenticate_user
+from .crypto_app import CryptoWidget
 
 
 class LoginWidget(QWidget):
@@ -13,6 +12,7 @@ class LoginWidget(QWidget):
         super().__init__()
         self.setup_ui()
         self.apply_styles()
+        self.crypto_window = None
 
     def setup_ui(self):
         # Main layout
@@ -64,23 +64,58 @@ class LoginWidget(QWidget):
         self.username_input.returnPressed.connect(self.on_login_clicked)
         self.password_input.returnPressed.connect(self.on_login_clicked)
 
-        self.apply_styles()
-
     def on_login_clicked(self):
         """Handle login button click"""
-        username = self.username_input.text().strip()
-        password = self.password_input.text().strip()
+        try:
+            username = self.username_input.text().strip()
+            password = self.password_input.text().strip()
 
-        if not username or not password:
-            self.show_error("Please enter both username and password")
-            return
-        result = authenticate_user(username, password)
-        if result["success"]:
-            self.show_success("Login successful!")
-            self.clear_fields()
-        else:
-            self.show_error(result["message"])
+            print(f"Username: {username}, Password: {password}")  # دیباگ
 
+            if not username or not password:
+                self.show_error("Please enter both username and password")
+                return
+
+            result = authenticate_user(username, password)
+            print(f"Auth result: {result}")  # دیباگ
+
+            if result["success"]:
+                self.show_success("Login successful!")
+                self.clear_fields()
+                print('111111111111111111111111')
+
+                # تاخیر کوچک قبل از باز کردن پنجره جدید
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(100, self.show_crypto_window)
+
+            else:
+                self.show_error(result["message"])
+
+        except Exception as e:
+            print(f"Error in on_login_clicked: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def show_crypto_window(self):
+        """Show crypto window after successful login"""
+        try:
+            print('2222222222222222222222222222')
+
+            # ایمپورت در داخل تابع برای جلوگیری از circular import
+
+            self.crypto_window = CryptoWidget()
+            print('333333333333333333333333333')
+
+            self.crypto_window.show()
+            print('444444444444444444444444444')
+
+            self.hide()
+            print('555555555555555555555555555')
+
+        except Exception as e:
+            print(f"Error in show_crypto_window: {e}")
+            import traceback
+            traceback.print_exc()
 
     def show_success(self, message: str):
         """Show success message"""
@@ -110,6 +145,5 @@ class LoginWidget(QWidget):
         style_file.close()
 
         self.setStyleSheet(stylesheet)
-
 
 
