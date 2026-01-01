@@ -1,10 +1,7 @@
-import os
 import hashlib
-from cryptography.hazmat.primitives.asymmetric import rsa
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad
 import base64
-from cryptography.hazmat.primitives import serialization
+import os
+
 
 USER_FOLDER_PATH = folder_path = "users"
 file_path = os.path.join(folder_path, "user.json")
@@ -40,134 +37,42 @@ def check_password(plain_password, hashed_password):
         return False
 
 
+import hashlib
+
+
 def generate_key_from_password(password, length):
-    hashed_password = hashlib.sha1(password.encode()).hexdigest()
-    key = hashed_password[:length]
-    return key
-
-
-def generate_rsa_private_public_keys(key_size=2048):
-    print('generating rsa private key')
-
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=key_size
-    )
-    public_key = private_key.public_key()
-
-    # serialize private key to PEM string
-    pem_private = private_key.private_bytes(
-        encoding = serialization.Encoding.PEM,
-        format = serialization.PrivateFormat.PKCS8,
-        encryption_algorithm = serialization.NoEncryption()
-    ).decode('utf-8')
-
-    # serialize public key too (optional)
-    pem_public = public_key.public_bytes(
-        encoding = serialization.Encoding.PEM,
-        format = serialization.PublicFormat.SubjectPublicKeyInfo
-    ).decode('utf-8')
-
-    return pem_private, pem_public
-
-
-
-def AES_encrypt(plaintext, password):
-    key = generate_key_from_password(password, 16).encode("utf-8")
-    if not isinstance(plaintext, str):
-        raise TypeError("plaintext must be a string")
-    plaintext_bytes = plaintext.encode('utf-8')
-    cipher = AES.new(key, AES.MODE_ECB)
-    padded_plaintext = pad(plaintext_bytes, AES.block_size)
-    ciphertext_bytes = cipher.encrypt(padded_plaintext)
-    ciphertext = base64.b64encode(ciphertext_bytes).decode('utf-8')
-    return ciphertext
-
-
-def AES_decrypt(ciphertext, password):
-    key = generate_key_from_password(password, 16).encode("utf-8")
-    ciphertext_bytes = ciphertext.encode('utf-8')
-    cipher = AES.new(key, AES.MODE_ECB)
-    decrypted_bytes = cipher.decrypt(ciphertext_bytes)
-    from Crypto.Util.Padding import unpad
-    plaintext_bytes = unpad(decrypted_bytes, AES.block_size)
-    return plaintext_bytes.decode('utf-8')
-
-
-def generate_user_data(username, password):
-    private_key, public_key = generate_rsa_private_public_keys()
-    encrypted_private_key = AES_encrypt(private_key, password)
-    return {
-      "username": username,
-      "password_hash": hash(password),
-      "public_key": public_key,
-      "encrypted_private_key": encrypted_private_key,
-    }
-
-
-# core/crypto.py
-
-def encrypt_file(file_path, key):
+    print(f'password: {password}, length: {length}')
     """
-    Encrypt a file using the provided key
-    Returns path to the encrypted file
+    Generate a key from password using SHA1 hash
+
+    Args:
+        password: String password
+        length: Desired key length (1-40 for SHA1 hex)
+
+    Returns:
+        Hexadecimal key string of specified length
     """
-    # TODO: Implement file encryption logic
-    # Example implementation:
-    # - Read file content
-    # - Encrypt the content
-    # - Save as new file with .enc extension
-    # - Return output file path
+    # Validation
+    if password is None:
+        raise ValueError("Password cannot be None")
 
-    output_path = file_path + ".enc"
-    # Your encryption logic here
-    return output_path
+    if not isinstance(password, str):
+        raise TypeError("Password must be a string")
 
+    if length <= 0 or length > 40:
+        raise ValueError("Length must be between 1 and 40")
 
-def decrypt_file(file_path, key):
-    """
-    Decrypt a file using the provided key
-    Returns path to the decrypted file
-    """
-    # TODO: Implement file decryption logic
-    # Example implementation:
-    # - Read encrypted file
-    # - Decrypt the content
-    # - Save as new file without .enc extension
-    # - Return output file path
+    try:
+        # Hash the password
+        hashed_password = hashlib.sha1(password.encode()).hexdigest()
 
-    if file_path.endswith('.enc'):
-        output_path = file_path[:-4]  # Remove .enc extension
-    else:
-        output_path = file_path + ".decrypted"
+        # Extract the key
+        key = hashed_password[:length]
 
-    # Your decryption logic here
-    return output_path
+        return key
+
+    except Exception as e:
+        raise RuntimeError(f"Key generation failed: {str(e)}")
 
 
-def encrypt_text(text, key):
-    """
-    Encrypt text using the provided key
-    Returns encrypted text as string
-    """
-    # TODO: Implement text encryption logic
-    # Example: Simple XOR encryption (for demonstration only)
-    encrypted = ""
-    for i, char in enumerate(text):
-        key_char = key[i % len(key)]
-        encrypted += chr(ord(char) ^ ord(key_char))
-    return encrypted
 
-
-def decrypt_text(encrypted_text, key):
-    """
-    Decrypt text using the provided key
-    Returns decrypted text as string
-    """
-    # TODO: Implement text decryption logic
-    # Example: Simple XOR decryption (same as encryption)
-    decrypted = ""
-    for i, char in enumerate(encrypted_text):
-        key_char = key[i % len(key)]
-        decrypted += chr(ord(char) ^ ord(key_char))
-    return decrypted
