@@ -6,7 +6,7 @@ import os
 import json
 
 
-def decrypt_file_with_symmetric(encrypted_file: str, key: bytes) -> str:
+def decrypt_file_with_symmetric(encrypted_file: str, key: bytes):
 
     if not encrypted_file.endswith('.enc'):
         raise ValueError("File must have .enc extension")

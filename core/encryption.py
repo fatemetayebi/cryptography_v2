@@ -7,8 +7,10 @@ from cryptography.hazmat.backends import default_backend
 import os
 import json
 from datetime import datetime
-from utilities import generate_key_from_password
+from utilities import generate_key_from_password, get_private_key
 from set_user import app_config
+from .mac import embed_mac_in_file
+from .signature import sign_file, load_private_key
 
 
 def encrypt_file_with_symmetric(input_file, key, algorithm, mode, sender, receiver):
@@ -87,8 +89,14 @@ def encrypt_file(file_path, encryption_mode, cipher_mode, target_user, mac_mode 
     """
     username = app_config.username
     password = app_config.password
-
+    print('11111111111111111111111111111111')
     key = generate_key_from_password(password, 16).encode("utf-8")
+    print('2222222222222222222222222')
+    embed_mac_in_file(file_path, mac_mode, key, file_path)
+    print('333333333333333333333333333')
+    private_key = get_private_key(username, password)
+    print('4444444444444444444444444444444')
+    sign_file(file_path, private_key, file_path, "SHA256")
     if encryption_mode == 'AES' or encryption_mode == 'DES' or encryption_mode == '3DES':
         encrypt_file_with_symmetric(file_path, key, encryption_mode, cipher_mode, username, target_user)
     # Example implementation:
