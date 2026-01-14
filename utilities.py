@@ -146,3 +146,21 @@ def get_private_key(username, password):
 def get_public_key(user):
     pass
 
+
+
+import json
+
+def get_file_header(filename):
+    header = ""
+    with open(filename, 'rb') as f:
+        content = f.read()
+        start = content.find(b'{')
+        end = content.find(b'}')
+        json_data = content[start:end + 1]
+        print(f'json_data: {json_data}')
+        header = json.loads(json_data.decode('utf-8'))
+        print(f'header: {header}')
+        return header
+
+
+

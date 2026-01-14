@@ -5,7 +5,8 @@ from cryptography.hazmat.primitives import hashes, cmac
 from cryptography.hazmat.primitives.ciphers import algorithms, Cipher, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
-
+from utilities import get_file_header
+import json
 
 class MACCalculator:
     """کلاس اصلی برای محاسبه MAC با الگوریتم‌های OMAC, CCM, HMAC"""
@@ -256,15 +257,13 @@ def embed_mac_in_file(file_path: str, mac_algorithm: str, key: bytes, output_pat
         mac_data = mac_result['tag'] + mac_result['nonce'] + mac_result['ciphertext']
 
     # کدگذاری هدر
-    header_bytes = str(mac_header).encode('utf-8')
-    header_length = len(header_bytes)
+    header_json = json.dumps(mac_header).encode('utf-8')
+    header_length = len(header_json).to_bytes(4, byteorder='big')
 
     # نوشتن فایل جدید با MAC
     with open(output_path, 'wb') as f:
-        # طول هدر (4 بایت)
-        f.write(header_length.to_bytes(4, byteorder='big'))
-        # خود هدر
-        f.write(header_bytes)
+        f.write(header_length)
+        f.write(header_json)
         # جداکننده MAC
         f.write(b'---MAC_SEPARATOR---')
 
@@ -302,30 +301,35 @@ def extract_and_verify_mac(file_path: str, key: bytes, **kwargs) -> dict:
     """
     with open(file_path, 'rb') as f:
         # خواندن طول هدر
-        header_length_bytes = f.read(4)
-        if len(header_length_bytes) < 4:
-            raise ValueError("فایل معتبر نیست: طول هدر موجود نیست")
-        header_length = int.from_bytes(header_length_bytes, byteorder='big')
-
-        # خواندن هدر
-        header_bytes = f.read(header_length)
-        if len(header_bytes) < header_length:
-            raise ValueError("فایل معتبر نیست: هدر کامل نیست")
-
-        # تبدیل هدر به دیکشنری
-        try:
-            mac_info = eval(header_bytes.decode('utf-8'))
-        except:
-            raise ValueError("فایل معتبر نیست: هدر قابل خواندن نیست")
-
+        # header_length_bytes = f.read(4)
+        # if len(header_length_bytes) < 4:
+        #     raise ValueError("فایل معتبر نیست: طول هدر موجود نیست")
+        # header_length = int.from_bytes(header_length_bytes, byteorder='big')
+        #
+        # # خواندن هدر
+        # header_bytes = f.read(header_length)
+        # if len(header_bytes) < header_length:
+        #     raise ValueError("فایل معتبر نیست: هدر کامل نیست")
+        #
+        # # تبدیل هدر به دیکشنری
+        # try:
+        #     mac_info = eval(header_bytes.decode('utf-8'))
+        # except:
+        #     raise ValueError("فایل معتبر نیست: هدر قابل خواندن نیست")
+        header = get_file_header(file_path)
+        content = f.read()
+        print(f'content: {content}\n\n')
+        mac_info = header
+        print(header)
         # پیدا کردن جداکننده MAC
         mac_separator = b'---MAC_SEPARATOR---'
-        mac_separator_pos = header_bytes.find(mac_separator)
+        mac_separator_pos = content.find(mac_separator)
+        print(f'content: {content}\n\n')
 
         if mac_separator_pos == -1:
             # جستجو در ادامه فایل
             remaining_data = f.read()
-            full_data = header_bytes + remaining_data
+            full_data = remaining_data
             mac_separator_pos = full_data.find(mac_separator)
 
             if mac_separator_pos == -1:
@@ -344,6 +348,7 @@ def extract_and_verify_mac(file_path: str, key: bytes, **kwargs) -> dict:
         else:
             # خواندن داده MAC
             mac_data = f.read(mac_info['mac_length'])
+            print(f'mac_data: {mac_data}')
 
             # برای CCM داده بیشتری می‌خوانیم
             if mac_info['mac_algorithm'].upper() == "CCM":

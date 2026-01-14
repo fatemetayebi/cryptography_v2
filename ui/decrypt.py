@@ -101,7 +101,7 @@ class DecryptTab(QWidget):
         #     return
 
         try:
-            output_path = decrypt_file(self.file_path, key)
+            output_path = decrypt_file(self.file_path)
             self.show_success(
                 f"File decrypted successfully!\n"
                 f"Saved to: {output_path}"

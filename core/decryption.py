@@ -1,9 +1,13 @@
 
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms as AES_algorithm
+from cryptography.hazmat.decrepit.ciphers import algorithms
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 import os
 import json
+from utilities import get_file_header, generate_key_from_password
+from set_user import app_config
+from .mac import extract_and_verify_mac
 
 
 def decrypt_file_with_symmetric(encrypted_file: str, key: bytes):
@@ -34,7 +38,7 @@ def decrypt_file_with_symmetric(encrypted_file: str, key: bytes):
 
         # Select algorithm and mode
         cipher_algorithm = {
-            'AES': algorithms.AES(key),
+            'AES': AES_algorithm.AES(key),
             'DES': algorithms.TripleDES(key),
             '3DES': algorithms.TripleDES(key)
         }.get(header['algorithm'].upper())
@@ -70,22 +74,32 @@ def decrypt_file_with_symmetric(encrypted_file: str, key: bytes):
     return output_file
 
 
-def decrypt_file(file_path, key):
+def decrypt_file(file_path):
     """
     Decrypt a file using the provided key
     Returns path to the decrypted file
     """
-    # TODO: Implement file decryption logic
-    # Example implementation:
-    # - Read encrypted file
-    # - Decrypt the content
-    # - Save as new file without .enc extension
-    # - Return output file path
+    password = app_config.password
+    key = generate_key_from_password(password, 16).encode("utf-8")
+    try:
+        header = get_file_header(file_path)
+        print(header)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}")
+    encryption_mode = header['algorithm']
+    cipher_mode = header['mode']
+    sender = header['sender']
+    receiver = header['receiver']
+    if encryption_mode == 'AES' or encryption_mode == 'DES' or encryption_mode == '3DES':
+        decrypt_file_with_symmetric(file_path, key)    # Example implementation:
 
     if file_path.endswith('.enc'):
         output_path = file_path[:-4]  # Remove .enc extension
     else:
         output_path = file_path + ".decrypted"
+
+    result = extract_and_verify_mac(output_path, key)
+    print(f'result: {result}')
 
     # Your decryption logic here
     return output_path

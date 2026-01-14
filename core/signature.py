@@ -4,6 +4,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 from cryptography.exceptions import InvalidSignature
+import json
 
 
 class DigitalSignature:
@@ -127,15 +128,13 @@ def sign_file(file_path: str, private_key, output_path: str = None, hash_algorit
     }
 
     # کدگذاری هدر
-    header_bytes = str(signature_header).encode('utf-8')
-    header_length = len(header_bytes)
+    header_json = json.dumps(signature_header).encode('utf-8')
+    header_length = len(header_json).to_bytes(4, byteorder='big')
 
     # نوشتن فایل امضا شده
     with open(output_path, 'wb') as f:
-        # طول هدر (4 بایت)
-        f.write(header_length.to_bytes(4, byteorder='big'))
-        # خود هدر
-        f.write(header_bytes)
+        f.write(header_length)
+        f.write(header_json)
         # جداکننده امضا
         f.write(b'---SIGNATURE_SEPARATOR---')
         # امضا
