@@ -133,7 +133,7 @@ def sign_file(file_path: str, private_key, output_path: str = None, hash_algorit
 
     # نوشتن فایل امضا شده
     with open(output_path, 'wb') as f:
-        f.write(header_length)
+        # f.write(header_length)
         f.write(header_json)
         # جداکننده امضا
         f.write(b'---SIGNATURE_SEPARATOR---')
@@ -144,6 +144,9 @@ def sign_file(file_path: str, private_key, output_path: str = None, hash_algorit
         # محتوای اصلی فایل
         f.write(original_content)
 
+    with open(file_path, 'rb') as f:
+        original_content = f.read()
+        print(f'f_after_sign:{original_content}')
     return output_path
 
 
@@ -338,64 +341,64 @@ def load_public_key(file_path: str):
 
 
 # مثال استفاده با کلیدهای دلخواه
-if __name__ == "__main__":
-    # تولید کلیدها (مثال - شما می‌توانید کلیدهای خود را از فایل بارگذاری کنید)
-    private_key, public_key = DigitalSignature.generate_key_pair()
-
-    # فایل نمونه
-    test_file = "test_document.txt"
-
-    # ایجاد فایل تست
-    with open(test_file, 'w', encoding='utf-8') as f:
-        f.write("این یک سند تست برای امضای دیجیتال است.\n")
-        f.write("محتوا باید بدون تغییر باقی بماند.")
-
-    print("=== امضای فایل ===")
-    signed_file = sign_file(test_file, private_key, "signed_document.sig")
-    print(f"فایل امضا شده ایجاد شد: {signed_file}")
-
-    print("\n=== بررسی امضا ===")
-    verification = verify_file_signature(signed_file, public_key)
-    print(f"امضا معتبر است: {verification['is_valid']}")
-
-    if verification['is_valid']:
-        print(f"الگوریتم: {verification['algorithm']}")
-        print(f"الگوریتم هش: {verification['hash_algorithm']}")
-        print(f"اندازه فایل: {verification['file_size']} بایت")
-
-        # نمایش محتوای اصلی
-        content = verification['original_content'].decode('utf-8')
-        print(f"\nمحتوای اصلی:\n{content}")
-
-    print("\n=== تست تغییر فایل ===")
-    # تغییر فایل اصلی
-    with open(test_file, 'a', encoding='utf-8') as f:
-        f.write("\nاین خط بعداً اضافه شد!")
-
-    # بررسی مجدد امضا (باید نامعتبر شود)
-    verification_modified = verify_file_signature(signed_file, public_key)
-    print(f"امضا پس از تغییر فایل معتبر است: {verification_modified['is_valid']}")
-
-    print("\n=== استفاده از کلیدهای دلخواه ===")
-    # مثال بارگذاری کلیدهای دلخواه
-    try:
-        # ذخیره کلیدها در فایل (برای مثال)
-        save_private_key(private_key, "my_private_key.pem")
-        save_public_key(public_key, "my_public_key.pem")
-
-        # بارگذاری کلیدهای دلخواه
-        my_private_key = load_private_key("my_private_key.pem")
-        my_public_key = load_public_key("my_public_key.pem")
-
-        print("کلیدهای دلخواه با موفقیت بارگذاری شدند")
-
-        # استفاده از کلیدهای دلخواه برای امضا
-        custom_signed_file = sign_file(test_file, my_private_key, "custom_signed.sig")
-        print(f"فایل با کلید دلخواه امضا شد: {custom_signed_file}")
-
-        # بررسی با کلید دلخواه
-        custom_verification = verify_file_signature(custom_signed_file, my_public_key)
-        print(f"امضا با کلید دلخواه معتبر است: {custom_verification['is_valid']}")
-
-    except Exception as e:
-        print(f"خطا در کار با کلیدهای دلخواه: {e}")
+# if __name__ == "__main__":
+#     # تولید کلیدها (مثال - شما می‌توانید کلیدهای خود را از فایل بارگذاری کنید)
+#     private_key, public_key = DigitalSignature.generate_key_pair()
+#
+#     # فایل نمونه
+#     test_file = "test_document.txt"
+#
+#     # ایجاد فایل تست
+#     with open(test_file, 'w', encoding='utf-8') as f:
+#         f.write("این یک سند تست برای امضای دیجیتال است.\n")
+#         f.write("محتوا باید بدون تغییر باقی بماند.")
+#
+#     print("=== امضای فایل ===")
+#     signed_file = sign_file(test_file, private_key, "signed_document.sig")
+#     print(f"فایل امضا شده ایجاد شد: {signed_file}")
+#
+#     print("\n=== بررسی امضا ===")
+#     verification = verify_file_signature(signed_file, public_key)
+#     print(f"امضا معتبر است: {verification['is_valid']}")
+#
+#     if verification['is_valid']:
+#         print(f"الگوریتم: {verification['algorithm']}")
+#         print(f"الگوریتم هش: {verification['hash_algorithm']}")
+#         print(f"اندازه فایل: {verification['file_size']} بایت")
+#
+#         # نمایش محتوای اصلی
+#         content = verification['original_content'].decode('utf-8')
+#         print(f"\nمحتوای اصلی:\n{content}")
+#
+#     print("\n=== تست تغییر فایل ===")
+#     # تغییر فایل اصلی
+#     with open(test_file, 'a', encoding='utf-8') as f:
+#         f.write("\nاین خط بعداً اضافه شد!")
+#
+#     # بررسی مجدد امضا (باید نامعتبر شود)
+#     verification_modified = verify_file_signature(signed_file, public_key)
+#     print(f"امضا پس از تغییر فایل معتبر است: {verification_modified['is_valid']}")
+#
+#     print("\n=== استفاده از کلیدهای دلخواه ===")
+#     # مثال بارگذاری کلیدهای دلخواه
+#     try:
+#         # ذخیره کلیدها در فایل (برای مثال)
+#         save_private_key(private_key, "my_private_key.pem")
+#         save_public_key(public_key, "my_public_key.pem")
+#
+#         # بارگذاری کلیدهای دلخواه
+#         my_private_key = load_private_key("my_private_key.pem")
+#         my_public_key = load_public_key("my_public_key.pem")
+#
+#         print("کلیدهای دلخواه با موفقیت بارگذاری شدند")
+#
+#         # استفاده از کلیدهای دلخواه برای امضا
+#         custom_signed_file = sign_file(test_file, my_private_key, "custom_signed.sig")
+#         print(f"فایل با کلید دلخواه امضا شد: {custom_signed_file}")
+#
+#         # بررسی با کلید دلخواه
+#         custom_verification = verify_file_signature(custom_signed_file, my_public_key)
+#         print(f"امضا با کلید دلخواه معتبر است: {custom_verification['is_valid']}")
+#
+#     except Exception as e:
+#         print(f"خطا در کار با کلیدهای دلخواه: {e}")

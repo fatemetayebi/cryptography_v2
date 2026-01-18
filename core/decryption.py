@@ -91,7 +91,7 @@ def decrypt_file(file_path):
     sender = header['sender']
     receiver = header['receiver']
     if encryption_mode == 'AES' or encryption_mode == 'DES' or encryption_mode == '3DES':
-        decrypt_file_with_symmetric(file_path, key)    # Example implementation:
+        decrypt_file_with_symmetric(file_path, key)
 
     if file_path.endswith('.enc'):
         output_path = file_path[:-4]  # Remove .enc extension
@@ -101,5 +101,4 @@ def decrypt_file(file_path):
     result = extract_and_verify_mac(output_path, key)
     print(f'result: {result}')
 
-    # Your decryption logic here
     return output_path

@@ -194,7 +194,7 @@ def calculate_file_mac(file_path: str, mac_algorithm: str, key: bytes, **kwargs)
 
     else:
         raise ValueError(f"الگوریتم MAC پشتیبانی نمی‌شود: {mac_algorithm}")
-
+    print(f'result------197: {result}')
     return result
 
 
@@ -262,7 +262,7 @@ def embed_mac_in_file(file_path: str, mac_algorithm: str, key: bytes, output_pat
 
     # نوشتن فایل جدید با MAC
     with open(output_path, 'wb') as f:
-        f.write(header_length)
+        # f.write(header_length)
         f.write(header_json)
         # جداکننده MAC
         f.write(b'---MAC_SEPARATOR---')
@@ -283,90 +283,78 @@ def embed_mac_in_file(file_path: str, mac_algorithm: str, key: bytes, output_pat
         else:
             # برای HMAC و OMAC: محتوای اصلی فایل
             f.write(original_content)
-
+    with open(file_path, 'rb') as f:
+        original_content = f.read()
+        print(f'f_after_mac:{original_content}')
     return output_path
 
 
 def extract_and_verify_mac(file_path: str, key: bytes, **kwargs) -> dict:
-    """
-    استخراج و بررسی MAC از فایل
 
-    Args:
-        file_path: مسیر فایل با MAC جاسازی شده
-        key: کلید
-        **kwargs: پارامترهای اضافی
-
-    Returns:
-        دیکشنری حاوی نتایج تأیید
-    """
     with open(file_path, 'rb') as f:
-        # خواندن طول هدر
-        # header_length_bytes = f.read(4)
-        # if len(header_length_bytes) < 4:
-        #     raise ValueError("فایل معتبر نیست: طول هدر موجود نیست")
-        # header_length = int.from_bytes(header_length_bytes, byteorder='big')
-        #
-        # # خواندن هدر
-        # header_bytes = f.read(header_length)
-        # if len(header_bytes) < header_length:
-        #     raise ValueError("فایل معتبر نیست: هدر کامل نیست")
-        #
-        # # تبدیل هدر به دیکشنری
-        # try:
-        #     mac_info = eval(header_bytes.decode('utf-8'))
-        # except:
-        #     raise ValueError("فایل معتبر نیست: هدر قابل خواندن نیست")
-        header = get_file_header(file_path)
-        content = f.read()
-        print(f'content: {content}\n\n')
-        mac_info = header
-        print(header)
-        # پیدا کردن جداکننده MAC
-        mac_separator = b'---MAC_SEPARATOR---'
-        mac_separator_pos = content.find(mac_separator)
-        print(f'content: {content}\n\n')
+        # خواندن کل فایل
+        full_data = f.read()
 
-        if mac_separator_pos == -1:
-            # جستجو در ادامه فایل
-            remaining_data = f.read()
-            full_data = remaining_data
-            mac_separator_pos = full_data.find(mac_separator)
+    # تحلیل هدر (فرض می‌کنیم header قبلاً استخراج شده)
+    header = get_file_header(file_path)  # این باید یک دیکشنری باشد
+    print("Header:", header)
 
-            if mac_separator_pos == -1:
-                raise ValueError("جداکننده MAC پیدا نشد")
+    # جداکننده‌ها
+    content_separator = b'---CONTENT_SEPARATOR---'
+    mac_separator = b'---MAC_SEPARATOR---'
 
-            mac_start = mac_separator_pos + len(mac_separator)
-            content_separator = b'---CONTENT_SEPARATOR---'
-            content_separator_pos = full_data.find(content_separator, mac_start)
+    # پیدا کردن موقعیت `mac_separator`
+    mac_separator_pos = full_data.find(mac_separator)
+    if mac_separator_pos == -1:
+        raise ValueError("جداکننده MAC یافت نشد")
 
-            if content_separator_pos == -1:
-                raise ValueError("جداکننده محتوا پیدا نشد")
+    # شروع بخش MAC (بعد از ---MAC_SEPARATOR---)
+    mac_start = mac_separator_pos
 
-            mac_data = full_data[mac_start:content_separator_pos]
-            encrypted_content = full_data[content_separator_pos + len(content_separator):]
+    # پیدا کردن موقعیت اولین ---CONTENT_SEPARATOR--- بعد از mac_start
+    content_separator_pos = full_data.find(content_separator)
+    if content_separator_pos == -1:
+        raise ValueError("جداکننده محتوا یافت نشد")
+    content_separator_pos = content_separator_pos + len(content_separator)
+    # استخراج داده MAC (بین mac_separator و content_separator)
+    print(f'content_separator_pos:{content_separator_pos}, mac_start:{mac_start}, pose_pose: {full_data[content_separator_pos:mac_start]}')
+    mac_data = full_data[content_separator_pos:mac_start]
 
-        else:
-            # خواندن داده MAC
-            mac_data = f.read(mac_info['mac_length'])
-            print(f'mac_data: {mac_data}')
+    # تبدیل به رشته و تجزیه JSON
+    try:
+        mac_info_string = mac_data.decode('utf-8')
+        mac_dictionary = json.loads(mac_data)
+        print("دیکشنری MAC با موفقیت استخراج شد:", mac_dictionary)
+    except Exception as e:
+        print(f"خطا در تجزیه MAC: {e}")
+        raise
 
-            # برای CCM داده بیشتری می‌خوانیم
-            if mac_info['mac_algorithm'].upper() == "CCM":
-                mac_data += f.read(len(mac_info['nonce']) // 2)  # nonce (hex to bytes)
-                mac_data += f.read(mac_info['ciphertext_length'])
+    mac_info = mac_dictionary
+    mac_data = mac_info['mac_length']
+    print(f'mac_data: {mac_data}')
 
-            # پیدا کردن جداکننده محتوا
-            content_separator = b'---CONTENT_SEPARATOR---'
-            separator_data = f.read(len(content_separator))
+    if mac_info['mac_algorithm'].upper() == "CCM":
+        mac_data += len(mac_info['nonce']) // 2  # nonce (hex to bytes)
+        mac_data += mac_info['ciphertext_length']
 
-            if separator_data != content_separator:
-                raise ValueError("جداکننده محتوا پیدا نشد")
 
-            # خواندن محتوای اصلی/رمز شده
-            if mac_info['mac_algorithm'].upper() == "CCM":
-                encrypted_content = f.read()
-            else:
-                original_content = f.read()
+    separator_data = full_data.find(content_separator, mac_start)
+
+    if full_data[separator_data:separator_data+len(content_separator)] != content_separator:
+        raise ValueError("جداکننده محتوا پیدا نشد")
+
+    original_content = full_data[separator_data+len(content_separator):len(full_data)]
+    print(f'original_content:{original_content}')
+    mac_length = mac_info['mac_length']
+    raw_mac_and_content_block = full_data[mac_separator_pos + len(mac_separator): separator_data]
+    print(f'raw_mac_and_content_block:{raw_mac_and_content_block}')
+    actual_mac_bytes = raw_mac_and_content_block[:mac_length]
+    encrypted_content = ''
+    # خواندن محتوای اصلی/رمز شده
+    # if mac_info['mac_algorithm'].upper() == "CCM":
+    #     encrypted_content = f.read()
+    # else:
+    #     original_content = f.read()
 
     # بررسی MAC بر اساس الگوریتم
     result = {
@@ -378,7 +366,7 @@ def extract_and_verify_mac(file_path: str, key: bytes, **kwargs) -> dict:
     try:
         if mac_info['mac_algorithm'].upper() == "HMAC":
             # استخراج MAC از داده
-            extracted_mac = mac_data[:mac_info['mac_length']]
+            extracted_mac = actual_mac_bytes
 
             # محاسبه مجدد MAC
             calculated_mac = MACCalculator.calculate_hmac(
@@ -394,7 +382,7 @@ def extract_and_verify_mac(file_path: str, key: bytes, **kwargs) -> dict:
 
         elif mac_info['mac_algorithm'].upper() == "OMAC":
             # استخراج MAC از داده
-            extracted_mac = mac_data[:mac_info['mac_length']]
+            extracted_mac = actual_mac_bytes
 
             # محاسبه مجدد MAC
             calculated_mac = MACCalculator.calculate_omac(
@@ -434,7 +422,7 @@ def extract_and_verify_mac(file_path: str, key: bytes, **kwargs) -> dict:
     except Exception as e:
         result['error'] = str(e)
         result['is_valid'] = False
-
+    print(f'result: {result}')
     return result
 
 

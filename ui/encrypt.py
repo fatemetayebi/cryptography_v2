@@ -3,12 +3,12 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog,
     QMessageBox, QComboBox, QGroupBox
 )
-from PyQt6.QtCore import Qt, QFile, QTextStream
 import json
 import os
 from core.encryption import encrypt_file
-from utilities import generate_key_from_password
-from set_user import app_config
+import tempfile
+import shutil
+from PyQt6.QtWidgets import QFileDialog
 
 
 
@@ -151,10 +151,32 @@ class EncryptTab(QWidget):
         )
 
         if file_path:
-            self.file_path = file_path
-            self.file_label.setText(file_path.split('/')[-1])  # Show only filename
-            self.encrypt_file_btn.setEnabled(True)
-            self.show_status("File selected", "success")
+            # 1. تعیین مسیر فایل کپی شده در همان دایرکتوری اصلی
+            directory = os.path.dirname(file_path)
+            filename = os.path.basename(file_path)
+
+            # ساخت نام فایل کپی (مثلاً original_name.copy.ext)
+            base, ext = os.path.splitext(filename)
+            temp_path = os.path.join(directory, f"{base}_copy{ext}")
+
+            # اگر فایل کپی از قبل وجود داشت، آن را پاک کنید یا نام جدیدی بدهید.
+            # در این مثال، ما فرض می‌کنیم که بازنویسی امن است یا باید وجود آن را چک کنیم.
+            # برای سادگی، از overwrite (بازنویسی ضمنی توسط copy2) استفاده می‌کنیم.
+
+            try:
+                # 2. کپی کردن محتوای فایل اصلی به مسیر جدید (همان دایرکتوری)
+                shutil.copy2(file_path, temp_path)
+
+                self.file_path = temp_path  # مسیر فایل کپی شده را ذخیره می‌کنیم
+                self.file_label.setText(filename)  # نام اصلی فایل را نمایش می‌دهیم
+                self.encrypt_file_btn.setEnabled(True)
+                self.show_status(f"Created local copy: {temp_path}", "success")
+
+            except Exception as e:
+                self.show_status(f"Error creating local copy: {e}", "error")
+                self.file_path = None
+                self.encrypt_file_btn.setEnabled(False)
+
 
     def on_encrypt_file(self):
 
