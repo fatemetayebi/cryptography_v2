@@ -5,6 +5,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 from cryptography.exceptions import InvalidSignature
 import json
+from set_user import app_config
+from utilities import get_private_key, get_public_key
+from utilities import get_file_header
 
 
 class DigitalSignature:
@@ -92,7 +95,7 @@ def calculate_file_hash(file_path: str, hash_algorithm: str = "SHA256") -> bytes
     return hash_func.digest()
 
 
-def sign_file(file_path: str, private_key, output_path: str = None, hash_algorithm: str = "SHA256"):
+def sign_file(file_path):
     """
     امضای دیجیتال فایل
 
@@ -105,6 +108,12 @@ def sign_file(file_path: str, private_key, output_path: str = None, hash_algorit
     Returns:
         مسیر فایل امضا شده
     """
+    output_path = file_path
+    username = app_config.username
+    password = app_config.password
+    private_key = get_private_key(username, password)
+
+    hash_algorithm = 'SHA256'
     if output_path is None:
         output_path = file_path + ".sig"
 
@@ -122,6 +131,7 @@ def sign_file(file_path: str, private_key, output_path: str = None, hash_algorit
     signature_header = {
         'algorithm': 'RSA-PSS',
         'hash_algorithm': hash_algorithm,
+        'signed_by': username,
         'timestamp': os.path.getmtime(file_path),
         'file_size': len(original_content),
         'signature_length': len(signature)
@@ -150,71 +160,80 @@ def sign_file(file_path: str, private_key, output_path: str = None, hash_algorit
     return output_path
 
 
-def verify_file_signature(signed_file_path: str, public_key) -> dict:
-    """
-    بررسی امضای دیجیتال فایل
+def verify_file_signature(signed_file_path):
 
-    Args:
-        signed_file_path: مسیر فایل امضا شده
-        public_key: کلید عمومی
-
-    Returns:
-        دیکشنری حاوی نتایج بررسی
-    """
     with open(signed_file_path, 'rb') as f:
-        # خواندن طول هدر
-        header_length_bytes = f.read(4)
-        if len(header_length_bytes) < 4:
-            raise ValueError("فایل معتبر نیست: طول هدر موجود نیست")
-        header_length = int.from_bytes(header_length_bytes, byteorder='big')
+        full_data = f.read()
+    header = get_file_header(signed_file_path)
+    signature_separator = b'---SIGNATURE_SEPARATOR---'
+    separator_pos = full_data.find(signature_separator)
+    if separator_pos == -1:
+        raise ValueError("جداکننده امضا پیدا نشد")
 
-        # خواندن هدر
-        header_bytes = f.read(header_length)
-        if len(header_bytes) < header_length:
-            raise ValueError("فایل معتبر نیست: هدر کامل نیست")
+    signature_start = separator_pos + len(signature_separator)
+    content_separator = b'---CONTENT_SEPARATOR---'
+    content_separator_pos = full_data.find(content_separator, signature_start)
 
-        # تبدیل هدر به دیکشنری
-        try:
-            signature_info = eval(header_bytes.decode('utf-8'))
-        except:
-            raise ValueError("فایل معتبر نیست: هدر قابل خواندن نیست")
+    if content_separator_pos == -1:
+        raise ValueError("جداکننده محتوا پیدا نشد")
 
-        # پیدا کردن جداکننده امضا
-        signature_separator = b'---SIGNATURE_SEPARATOR---'
-        separator_pos = header_bytes.find(signature_separator)
-
-        if separator_pos == -1:
-            # جستجو در ادامه فایل
-            remaining_data = f.read()
-            full_data = header_bytes + remaining_data
-            separator_pos = full_data.find(signature_separator)
-
-            if separator_pos == -1:
-                raise ValueError("جداکننده امضا پیدا نشد")
-
-            signature_start = separator_pos + len(signature_separator)
-            content_separator = b'---CONTENT_SEPARATOR---'
-            content_separator_pos = full_data.find(content_separator, signature_start)
-
-            if content_separator_pos == -1:
-                raise ValueError("جداکننده محتوا پیدا نشد")
-
-            signature_data = full_data[signature_start:content_separator_pos]
-            original_content = full_data[content_separator_pos + len(content_separator):]
-
-        else:
-            # خواندن امضا
-            signature_data = f.read(signature_info['signature_length'])
-
-            # پیدا کردن جداکننده محتوا
-            content_separator = b'---CONTENT_SEPARATOR---'
-            separator_data = f.read(len(content_separator))
-
-            if separator_data != content_separator:
-                raise ValueError("جداکننده محتوا پیدا نشد")
-
-            # خواندن محتوای اصلی
-            original_content = f.read()
+    signature_data = full_data[signature_start:content_separator_pos]
+    original_content = full_data[content_separator_pos + len(content_separator):]
+    signature_info = header
+    public_key = get_public_key(signature_info['signed_by'])
+        # # خواندن طول هدر
+        # header_length_bytes = f.read(4)
+        # if len(header_length_bytes) < 4:
+        #     raise ValueError("فایل معتبر نیست: طول هدر موجود نیست")
+        # header_length = int.from_bytes(header_length_bytes, byteorder='big')
+        #
+        # # خواندن هدر
+        # header_bytes = f.read(header_length)
+        # if len(header_bytes) < header_length:
+        #     raise ValueError("فایل معتبر نیست: هدر کامل نیست")
+        #
+        # # تبدیل هدر به دیکشنری
+        # try:
+        #     signature_info = eval(header_bytes.decode('utf-8'))
+        # except:
+        #     raise ValueError("فایل معتبر نیست: هدر قابل خواندن نیست")
+        #
+        # # پیدا کردن جداکننده امضا
+        # signature_separator = b'---SIGNATURE_SEPARATOR---'
+        # separator_pos = header_bytes.find(signature_separator)
+        #
+        # if separator_pos == -1:
+        #     # جستجو در ادامه فایل
+        #     remaining_data = f.read()
+        #     full_data = header_bytes + remaining_data
+        #     separator_pos = full_data.find(signature_separator)
+        #
+        #     if separator_pos == -1:
+        #         raise ValueError("جداکننده امضا پیدا نشد")
+        #
+        #     signature_start = separator_pos + len(signature_separator)
+        #     content_separator = b'---CONTENT_SEPARATOR---'
+        #     content_separator_pos = full_data.find(content_separator, signature_start)
+        #
+        #     if content_separator_pos == -1:
+        #         raise ValueError("جداکننده محتوا پیدا نشد")
+        #
+        #     signature_data = full_data[signature_start:content_separator_pos]
+        #     original_content = full_data[content_separator_pos + len(content_separator):]
+        #
+        # else:
+        #     # خواندن امضا
+        #     signature_data = f.read(signature_info['signature_length'])
+        #
+        #     # پیدا کردن جداکننده محتوا
+        #     content_separator = b'---CONTENT_SEPARATOR---'
+        #     separator_data = f.read(len(content_separator))
+        #
+        #     if separator_data != content_separator:
+        #         raise ValueError("جداکننده محتوا پیدا نشد")
+        #
+        #     # خواندن محتوای اصلی
+        #     original_content = f.read()
 
     # محاسبه مجدد هش
     recalculated_hash = calculate_file_hash_from_content(original_content, signature_info['hash_algorithm'])

@@ -5,9 +5,10 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 import os
 import json
-from utilities import get_file_header, generate_key_from_password
+from utilities import get_file_header, generate_key_from_password, clean_main_content_in_place
 from set_user import app_config
-from .mac import extract_and_verify_mac
+from core.mac import extract_and_verify_mac
+from core.signature import verify_file_signature
 
 
 def decrypt_file_with_symmetric(encrypted_file: str, key: bytes):
@@ -94,11 +95,16 @@ def decrypt_file(file_path):
         decrypt_file_with_symmetric(file_path, key)
 
     if file_path.endswith('.enc'):
-        output_path = file_path[:-4]  # Remove .enc extension
-    else:
-        output_path = file_path + ".decrypted"
+        file_path = file_path[:-4]  # Remove .enc extension
 
-    result = extract_and_verify_mac(output_path, key)
-    print(f'result: {result}')
+    mac_result = extract_and_verify_mac(file_path, key)
+    sign_result = verify_file_signature(file_path)
+    clean_main_content_in_place(file_path)
 
-    return output_path
+    if not mac_result['is_valid'] or not sign_result['is_valid']:
+        raise Exception("mac or signature verification failed")
+
+
+    print(f'mac_result: {mac_result}, sign_result: {sign_result}')
+
+    return file_path

@@ -1,6 +1,7 @@
 import hashlib
 import base64
 import os
+import tempfile
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 import json
@@ -143,8 +144,16 @@ def get_private_key(username, password):
 
 
 
-def get_public_key(user):
-    pass
+def get_public_key(username):
+    user = get_user_from_file(username)
+    public_key_pem = user.get("public_key")
+
+    # PEM is plain text → encode to bytes
+    pem_bytes = public_key_pem.encode("utf-8")
+
+    public_key = load_pem_public_key(pem_bytes)
+    print(f"Private key loaded OK: {public_key}")
+    return public_key
 
 
 
@@ -157,10 +166,43 @@ def get_file_header(filename):
         start = content.find(b'{')
         end = content.find(b'}')
         json_data = content[start:end + 1]
-        print(f'json_data: {json_data}')
         header = json.loads(json_data.decode('utf-8'))
-        print(f'header: {header}')
         return header
 
 
+
+
+def clean_main_content_in_place(filename):
+
+    content_separator = b'---CONTENT_SEPARATOR---'
+    mac_separator = b'---MAC_SEPARATOR---'
+
+    with open(filename, 'rb') as f:
+        full_data = f.read()
+
+    mac_separator_pos = full_data.find(mac_separator)
+    if mac_separator_pos == -1:
+        raise ValueError("جداکننده MAC یافت نشد.")
+
+    content_separator_pos = full_data.find(content_separator, mac_separator_pos)
+    if content_separator_pos == -1:
+        raise ValueError("جداکننده محتوا یافت نشد.")
+
+    start_of_content = content_separator_pos + len(content_separator)
+    main_content = full_data[start_of_content:len(full_data)]
+
+    # ۳. بازنویسی فایل اصلی با محتوای تمیز شده (استفاده از فایل موقت برای ایمنی)
+    temp_file_descriptor, temp_filename = tempfile.mkstemp()
+
+    try:
+        with os.fdopen(temp_file_descriptor, 'wb') as tmp_f:
+            tmp_f.write(main_content)
+
+        # جایگزینی فایل اصلی با فایل موقت
+        os.replace(temp_filename, filename)
+
+    except Exception as e:
+        # اگر مشکلی در نوشتن پیش آمد، فایل موقت را پاک کن
+        os.remove(temp_filename)
+        raise Exception(f"خطا در بازنویسی فایل: {str(e)}")
 
