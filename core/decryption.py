@@ -25,7 +25,7 @@ def decrypt_file_with_symmetric(encrypted_file: str, key: bytes):
         # Read header
         header_length = int.from_bytes(f_in.read(4), byteorder='big')
         header_json = f_in.read(header_length)
-        iv = f_in.read(16)  # Read IV
+
 
         try:
             header = json.loads(header_json.decode('utf-8'))
@@ -44,15 +44,32 @@ def decrypt_file_with_symmetric(encrypted_file: str, key: bytes):
             '3DES': algorithms.TripleDES(key)
         }.get(header['algorithm'].upper())
 
+        algorithm_upper = header['algorithm'].upper()
+        if algorithm_upper == 'AES':
+            iv_length = 16
+            valid_key_lengths = [16, 24, 32]
+            if len(key) not in valid_key_lengths:
+                raise ValueError("Key must be 16, 24, or 32 bytes for AES")
+
+        elif algorithm_upper in ('DES', '3DES'):
+            iv_length = 8
+            valid_key_lengths = [8, 16, 24]
+            if len(key) not in valid_key_lengths:
+                raise ValueError("Key must be 8, 16, or 24 bytes for DES/3DES")
+
+        else:
+            raise ValueError(f"الگوریتم {cipher_algorithm} پشتیبانی نمی‌شود.")
+        iv = f_in.read(iv_length)  # Read IV
+
         cipher_mode = {
             'CBC': modes.CBC(iv),
             'CFB': modes.CFB(iv),
-            'OFB': modes.OFB(iv),
             'CTR': modes.CTR(iv)
         }.get(header['mode'].upper())
 
         if cipher_algorithm is None or cipher_mode is None:
             raise ValueError("Unsupported algorithm or mode in header")
+
 
         # Create cipher
         cipher = Cipher(cipher_algorithm, cipher_mode, backend=default_backend())

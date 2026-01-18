@@ -1,5 +1,5 @@
 
-from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms as AES_algorithm
+from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms as AES_Algo
 from cryptography.hazmat.decrepit.ciphers import algorithms
 
 from cryptography.hazmat.primitives import padding
@@ -18,8 +18,21 @@ def encrypt_file_with_symmetric(input_file, key, algorithm, mode, sender, receiv
     if not os.path.exists(input_file):
         raise FileNotFoundError(f"Input file not found: {input_file}")
 
-    if len(key) not in [16, 24, 32] and algorithm == 'AES':
-        raise ValueError("Key must be 16, 24, or 32 bytes for AES")
+    algorithm_upper = algorithm.upper()
+    if algorithm_upper == 'AES':
+        iv_length = 16
+        valid_key_lengths = [16, 24, 32]
+        if len(key) not in valid_key_lengths:
+            raise ValueError("Key must be 16, 24, or 32 bytes for AES")
+
+    elif algorithm_upper in ('DES', '3DES'):
+        iv_length = 8
+        valid_key_lengths = [8, 16, 24]
+        if len(key) not in valid_key_lengths:
+            raise ValueError("Key must be 8, 16, or 24 bytes for DES/3DES")
+
+    else:
+        raise ValueError(f"الگوریتم {algorithm} پشتیبانی نمی‌شود.")
 
     # Create custom header
     header = {
@@ -37,7 +50,7 @@ def encrypt_file_with_symmetric(input_file, key, algorithm, mode, sender, receiv
 
     # Select algorithm and mode
     cipher_algorithm = {
-        'AES': AES_algorithm.AES(key),
+        'AES': AES_Algo.AES(key),
         'DES': algorithms.TripleDES(key),  # Using TripleDES as an example
         '3DES': algorithms.TripleDES(key)
     }.get(algorithm.upper())
@@ -45,12 +58,15 @@ def encrypt_file_with_symmetric(input_file, key, algorithm, mode, sender, receiv
     if cipher_algorithm is None:
         raise ValueError(f"Unsupported algorithm: {algorithm}")
 
-    # Select encryption mode
-    iv = key[:16]
+
+    if len(key) < iv_length:
+        raise ValueError(f"طول کلید ({len(key)} بایت) برای IV مورد نیاز ({iv_length} بایت) کافی نیست.")
+
+    iv = key[:iv_length]
+
     cipher_mode = {
         'CBC': modes.CBC(iv),
         'CFB': modes.CFB(iv),
-        'OFB': modes.OFB(iv),
         'CTR': modes.CTR(iv)
     }.get(mode.upper())
 

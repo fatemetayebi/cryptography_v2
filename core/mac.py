@@ -1,9 +1,10 @@
-import os
 import hashlib
 import hmac
 from cryptography.hazmat.primitives import hashes, cmac
-from cryptography.hazmat.primitives.ciphers import algorithms, Cipher, modes
+from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms as AES_Algo
+from cryptography.hazmat.primitives.ciphers.aead import AESCCM
 from cryptography.hazmat.backends import default_backend
+import os
 from cryptography.exceptions import InvalidTag
 from utilities import get_file_header
 import json
@@ -59,81 +60,100 @@ class MACCalculator:
             raise ValueError("کلید AES باید 16, 24 یا 32 بایت باشد")
 
         # استفاده از CMAC که همان OMAC1 است
-        c = cmac.CMAC(algorithms.AES(key), backend=default_backend())
+        c = cmac.CMAC(AES_Algo.AES(key), backend=default_backend())
         c.update(data)
         return c.finalize()
 
     @staticmethod
-    def calculate_ccm(data: bytes, key: bytes, nonce: bytes = None, associated_data: bytes = b"") -> tuple:
+    def calculate_ccm(data: bytes, key: bytes, nonce: bytes = None, associated_data: bytes = b"") -> tuple[
+        bytes, bytes, bytes]:
         """
-        محاسبه CCM (Counter with CBC-MAC)
+        محاسبه AES-CCM با استفاده از رابط AEAD.
 
         Args:
-            data: داده ورودی
-            key: کلید رمزنگاری
-            nonce: مقدار یکبارمصرف (اگر None باشد، به صورت تصادفی تولید می‌شود)
+            data: داده ورودی (bytes)
+            key: کلید رمزنگاری (16, 24, or 32 bytes)
+            nonce: مقدار یکبارمصرف (اگر None باشد، به صورت تصادفی 12 بایتی تولید می‌شود)
             associated_data: داده همراه (اختیاری)
 
         Returns:
             tuple: (ciphertext, tag, nonce)
         """
-        # بررسی طول کلید
+        # 1. بررسی طول کلید AES
         if len(key) not in [16, 24, 32]:
-            raise ValueError("کلید AES باید 16, 24 یا 32 بایت باشد")
+            raise ValueError("کلید AES باید 16، 24 یا 32 بایت باشد.")
 
-        # تولید nonce اگر ارائه نشده باشد
         if nonce is None:
-            nonce = os.urandom(13)  # طول معمول nonce برای CCM
+            # 12 بایت تصادفی برای Nonce
+            nonce = os.urandom(12)
 
-        # ایجاد cipher CCM
-        algorithm = algorithms.AES(key)
-        cipher = Cipher(algorithm, modes.CCM(nonce), backend=default_backend())
-        encryptor = cipher.encryptor()
+            # اگر کاربر Nonce با طول نامناسبی فرستاد، باید آن را بررسی کرد
+        if len(nonce) != 12:
+            raise ValueError("Nonce برای AES-CCM باید دقیقاً 12 بایت باشد.")
 
-        # اضافه کردن داده همراه (اگر وجود دارد)
-        if associated_data:
-            encryptor.authenticate_additional_data(associated_data)
+        aes_ccm = AESCCM(key)
 
-        # رمزنگاری و تولید tag
-        ciphertext = encryptor.update(data) + encryptor.finalize()
-        tag = encryptor.tag
 
-        return ciphertext, tag, nonce
+        try:
+            ciphertext_with_tag = aes_ccm.encrypt(
+                nonce,
+                data,
+                associated_data
+            )
+        except Exception as e:
+            # این خطا معمولاً رخ نمی‌دهد مگر مشکل در backend یا تنظیمات باشد.
+            raise RuntimeError(f"خطا در حین رمزنگاری CCM: {e}")
+
+
+        tag_length = 16  # فرض می‌کنیم تگ 16 بایتی است
+        aes_ccm = AESCCM(key, tag_length)
+
+        ciphertext_with_tag = aes_ccm.encrypt(nonce, data, associated_data)
+
+        try:
+            ciphertext, tag = aes_ccm.encrypt_and_extract_tag(nonce, data, associated_data)
+            return ciphertext, tag, nonce
+        except AttributeError:
+
+            tag_length = 16
+            ciphertext = ciphertext_with_tag[:-tag_length]
+            tag = ciphertext_with_tag[-tag_length:]
+            return ciphertext, tag, nonce
 
     @staticmethod
+
     def verify_ccm(ciphertext: bytes, tag: bytes, key: bytes, nonce: bytes, associated_data: bytes = b"") -> bytes:
         """
-        بررسی و رمزگشایی CCM
+        بررسی و رمزگشایی CCM با استفاده از رابط AEAD.
 
         Args:
-            ciphertext: متن رمز شده
-            tag: تگ احراز هویت
-            key: کلید رمزنگاری
-            nonce: مقدار یکبارمصرف
+            ciphertext: متن رمز شده (بایت)
+            tag: تگ احراز هویت (بایت)
+            key: کلید رمزنگاری (16, 24 یا 32 بایت)
+            nonce: مقدار یکبارمصرف (12 بایت)
             associated_data: داده همراه (اختیاری)
 
         Returns:
-            داده اصلی رمزگشایی شده
+            داده اصلی رمزگشایی شده (بایت)
 
         Raises:
             InvalidTag: اگر تگ معتبر نباشد
         """
-        # بررسی طول کلید
+        # 1. بررسی طول کلید
         if len(key) not in [16, 24, 32]:
-            raise ValueError("کلید AES باید 16, 24 یا 32 بایت باشد")
+            raise ValueError("کلید AES باید 16، 24 یا 32 بایت باشد.")
 
-        # ایجاد cipher CCM برای رمزگشایی
-        algorithm = algorithms.AES(key)
-        cipher = Cipher(algorithm, modes.CCM(nonce, tag=tag), backend=default_backend())
-        decryptor = cipher.decryptor()
+        # 2. بررسی طول nonce
+        if len(nonce) != 12:
+            raise ValueError("Nonce برای AES-CCM باید دقیقاً 12 بایت باشد.")
 
-        # اضافه کردن داده همراه (اگر وجود دارد)
-        if associated_data:
-            decryptor.authenticate_additional_data(associated_data)
+        # 3. ایجاد شیء AESCCM
+        # تگ طول را باید در هنگام ساخت شیء مشخص کنیم (معمولاً 16 بایت)
+        aes_ccm = AESCCM(key, tag_length=16)  # 16 بایت تگ
 
-        # رمزگشایی و بررسی تگ
+        # 4. رمزگشایی و بررسی تگ
         try:
-            plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+            plaintext = aes_ccm.decrypt(nonce, ciphertext, associated_data)
             return plaintext
         except InvalidTag:
             raise InvalidTag("تگ CCM معتبر نیست")
@@ -254,7 +274,10 @@ def embed_mac_in_file(file_path: str, mac_algorithm: str, key: bytes, output_pat
             'mac_length': mac_result['mac_length'],
             'ciphertext_length': len(mac_result['ciphertext'])
         })
-        mac_data = mac_result['tag'] + mac_result['nonce'] + mac_result['ciphertext']
+        mac_data = mac_result['ciphertext'] + mac_result['tag']
+
+        # mac_data = mac_result['tag'] + mac_result['nonce'] + mac_result['ciphertext']
+        # mac_data = mac_result['ciphertext']
 
     # کدگذاری هدر
     header_json = json.dumps(mac_header).encode('utf-8')
@@ -332,13 +355,12 @@ def extract_and_verify_mac(file_path: str, key: bytes, **kwargs) -> dict:
     mac_info = mac_dictionary
     mac_data = mac_info['mac_length']
     print(f'mac_data: {mac_data}')
+    separator_data = full_data.find(content_separator, mac_start)
 
     if mac_info['mac_algorithm'].upper() == "CCM":
         mac_data += len(mac_info['nonce']) // 2  # nonce (hex to bytes)
         mac_data += mac_info['ciphertext_length']
 
-
-    separator_data = full_data.find(content_separator, mac_start)
 
     if full_data[separator_data:separator_data+len(content_separator)] != content_separator:
         raise ValueError("جداکننده محتوا پیدا نشد")
@@ -349,7 +371,6 @@ def extract_and_verify_mac(file_path: str, key: bytes, **kwargs) -> dict:
     raw_mac_and_content_block = full_data[mac_separator_pos + len(mac_separator): separator_data]
     print(f'raw_mac_and_content_block:{raw_mac_and_content_block}')
     actual_mac_bytes = raw_mac_and_content_block[:mac_length]
-    encrypted_content = ''
     # خواندن محتوای اصلی/رمز شده
     # if mac_info['mac_algorithm'].upper() == "CCM":
     #     encrypted_content = f.read()
@@ -404,6 +425,8 @@ def extract_and_verify_mac(file_path: str, key: bytes, **kwargs) -> dict:
 
             # رمزگشایی و بررسی
             try:
+                encrypted_content = raw_mac_and_content_block
+                print(f'encrypted_content:{encrypted_content}')
                 decrypted_content = MACCalculator.verify_ccm(
                     encrypted_content,
                     tag,

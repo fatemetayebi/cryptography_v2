@@ -82,7 +82,7 @@ class EncryptTab(QWidget):
         cipher_layout = QHBoxLayout()
         cipher_label = QLabel("Cipher Mode:")
         self.cipher_combo = QComboBox()
-        self.cipher_combo.addItems(["CTR", "CFB", "CBC", "ECB"])
+        self.cipher_combo.addItems(["CTR", "CFB", "CBC"])
         self.cipher_combo.setCurrentIndex(0)
         cipher_layout.addWidget(cipher_label)
         cipher_layout.addWidget(self.cipher_combo)
