@@ -50,7 +50,7 @@ def authenticate_user(username, password):
         if check_password(password, user_found["password_hash"]):
             result = {"success":True, "message":"Login successful!"}
         else:
-            print(f'password hash mismatch: {user_found["password_hash"]} != {password}')
+            # print(f'password hash mismatch: {user_found["password_hash"]} != {password}')
             result = {"success": False, "message": "Something went wrong!"}
 
     else:

@@ -97,6 +97,7 @@ class MACCalculator:
         aes_ccm = AESCCM(key, tag_length=16)
         try:
             plaintext = aes_ccm.decrypt(nonce, ciphertext, associated_data)
+            print(f'plaintext: {plaintext}')
             return plaintext
         except InvalidTag:
             raise InvalidTag("CCM tag is invalid.")
@@ -145,7 +146,7 @@ def calculate_file_mac(file_path: str, mac_algorithm: str, key: bytes, **kwargs)
 
     else:
         raise ValueError(f" MAC algorithm not support {mac_algorithm}")
-    print(f'result------197: {result}')
+    # print(f'result------197: {result}')
     return result
 
 
@@ -229,7 +230,7 @@ def extract_and_verify_mac(file_path: str, key: bytes, **kwargs) -> dict:
         raise ValueError("Content separator not found.")
     content_separator_pos = content_separator_pos + len(content_separator)
 
-    print(f'content_separator_pos:{content_separator_pos}, mac_start:{mac_start}, pose_pose: {full_data[content_separator_pos:mac_start]}')
+    # print(f'content_separator_pos:{content_separator_pos}, mac_start:{mac_start}, pose_pose: {full_data[content_separator_pos:mac_start]}')
     mac_data = full_data[content_separator_pos:mac_start]
 
     try:

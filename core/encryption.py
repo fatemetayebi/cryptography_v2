@@ -1,4 +1,4 @@
-from utilities import generate_key_from_password, AES_encrypt, get_public_key
+from utilities import generate_key_from_password, get_public_key
 from set_user import app_config
 from core.mac import embed_mac_in_file
 from core.signature import sign_file
@@ -16,14 +16,15 @@ def encrypt_file_with_secure_envelope(input_file, sender, receiver, key):
     dek = key
     receiver_public_key = get_public_key(receiver)
     wrapped_dek = RSA_encryption(dek, receiver_public_key)
-
+    algorithm = 'AES'
+    mode = 'CBC'
     with open(input_file, 'rb') as f_in:
         data = f_in.read()
-        encrypted_data = AES_encrypt(data, key)
+        encrypted_data = symmetric_encrypt(data, key, algorithm, mode)
 
     header = {
         'encryption_scheme': 'SECURE_ENVELOPE_AES256_RSA2048',
-        'algorithm': 'AES',
+        'algorithm': 'SecureEnvelope',
         'sender': sender,
         'receiver': receiver,
         'timestamp': datetime.utcnow().isoformat(),
@@ -33,7 +34,7 @@ def encrypt_file_with_secure_envelope(input_file, sender, receiver, key):
 
     header_json = json.dumps(header).encode('utf-8')
 
-    output_file = input_file + '.enc_secure'
+    output_file = input_file + '.enc'
     with open(output_file, 'wb') as f_out:
         f_out.write(header_json)
         f_out.write(wrapped_dek)

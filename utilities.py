@@ -72,7 +72,7 @@ def check_password(plain_password, hashed_password):
 
 
 def generate_key_from_password(password, length):
-    print(f'password: {password}, length: {length}')
+    # print(f'password: {password}, length: {length}')
     """
     Generate a key from password using SHA1 hash
 
@@ -151,7 +151,7 @@ def get_private_key(username, password):
         pem_bytes,
         password=password.encode("utf-8") if password else None,
     )
-    print(f"Private key loaded OK: {private_key}")
+    # print(f"Private key loaded OK: {private_key}")
     return private_key
 
 
@@ -164,7 +164,7 @@ def get_public_key(username):
     pem_bytes = public_key_pem.encode("utf-8")
 
     public_key = load_pem_public_key(pem_bytes)
-    print(f"Private key loaded OK: {public_key}")
+    # print(f"Private key loaded OK: {public_key}")
     return public_key
 
 
@@ -179,24 +179,24 @@ def get_file_header(filename):
         return header
 
 
-def clean_main_content_in_place(filename):
+def clean_main_content_in_place(filename, full_data):
 
     content_separator = b'---CONTENT_SEPARATOR---'
     mac_separator = b'---MAC_SEPARATOR---'
 
-    with open(filename, 'rb') as f:
-        full_data = f.read()
+    # with open(filename, 'rb') as f:
+    #     full_data = f.read()
 
-    mac_separator_pos = full_data.find(mac_separator)
-    if mac_separator_pos == -1:
-        raise ValueError("MAC separator not found")
-
-    content_separator_pos = full_data.find(content_separator, mac_separator_pos)
-    if content_separator_pos == -1:
-        raise ValueError("Content separator not found")
-
-    start_of_content = content_separator_pos + len(content_separator)
-    main_content = full_data[start_of_content:len(full_data)]
+    # mac_separator_pos = full_data.find(mac_separator)
+    # if mac_separator_pos == -1:
+    #     raise ValueError("MAC separator not found")
+    #
+    # content_separator_pos = full_data.find(content_separator, mac_separator_pos)
+    # if content_separator_pos == -1:
+    #     raise ValueError("Content separator not found")
+    #
+    # start_of_content = content_separator_pos + len(content_separator)
+    main_content = full_data['original_content']
 
     temp_file_descriptor, temp_filename = tempfile.mkstemp()
 
