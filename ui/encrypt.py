@@ -71,7 +71,7 @@ class EncryptTab(QWidget):
         encryption_layout = QHBoxLayout()
         encryption_label = QLabel("Encryption Mode:")
         self.encryption_combo = QComboBox()
-        self.encryption_combo.addItems(["secureenvelop", "RSA", "AES", "DES", "3DES"])
+        self.encryption_combo.addItems(["SecureEnvelop", "RSA", "AES", "DES", "3DES"])
         self.encryption_combo.setCurrentIndex(0)
         self.encryption_combo.currentTextChanged.connect(self.on_encryption_mode_changed)
         encryption_layout.addWidget(encryption_label)
@@ -88,7 +88,7 @@ class EncryptTab(QWidget):
         cipher_layout.addWidget(self.cipher_combo)
         cipher_layout.addStretch()
 
-        # Encrypt For User Selection (only for RSA and secureenvelop)
+        # Encrypt For User Selection (only for RSA and SecureEnvelop)
         self.user_layout = QHBoxLayout()
         user_label = QLabel("Encrypt For:")
         self.user_combo = QComboBox()
@@ -130,7 +130,7 @@ class EncryptTab(QWidget):
         """تغییر وضعیت المان‌ها بر اساس مود رمزنگاری انتخاب شده"""
         encryption_mode = self.encryption_combo.currentText()
 
-        if encryption_mode in ["RSA", "secureenvelop"]:
+        if encryption_mode in ["RSA", "SecureEnvelop"]:
             # فعال کردن انتخاب کاربر و غیرفعال کردن فیلد کلید
             self.user_combo.setEnabled(True)
             self.key_input.setEnabled(False)
@@ -183,12 +183,12 @@ class EncryptTab(QWidget):
         encryption_mode = self.encryption_combo.currentText()
         mac_mode = self.mac_combo.currentText()
         cipher_mode = self.cipher_combo.currentText()
-        # if encryption_mode in ["RSA", "secureenvelop"]:
+        # if encryption_mode in ["RSA", "SecureEnvelop"]:
         #     print('5555555555')
-        #     # استفاده از کاربر انتخاب شده برای RSA و secureenvelop
+        #     # استفاده از کاربر انتخاب شده برای RSA و SecureEnvelop
         #     selected_user = self.user_combo.currentText()
         #     if selected_user == "No users available" or not selected_user:
-        #         self.show_error("Please select a user for RSA/secureenvelop encryption")
+        #         self.show_error("Please select a user for RSA/SecureEnvelop encryption")
         #         return
         #
         # else:
@@ -203,14 +203,14 @@ class EncryptTab(QWidget):
                 self.file_path,
                 encryption_mode=encryption_mode,
                 cipher_mode=cipher_mode,
-                target_user=self.user_combo.currentText() if encryption_mode in ["RSA", "secureenvelop"] else None,
+                receiver=self.user_combo.currentText() if encryption_mode in ["RSA", "SecureEnvelop"] else None,
                 mac_mode = mac_mode,
             )
             success_message = f"File encrypted successfully!\n"
             success_message += f"MAC Mode: {mac_mode}\n"
             success_message += f"Encryption Mode: {encryption_mode}\n"
 
-            if encryption_mode in ["RSA", "secureenvelop"]:
+            if encryption_mode in ["RSA", "SecureEnvelop"]:
                 success_message += f"Encrypted For: {self.user_combo.currentText()}\n"
             else:
                 success_message += f"Cipher Mode: {cipher_mode}\n"

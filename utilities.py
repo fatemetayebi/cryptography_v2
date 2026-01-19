@@ -6,7 +6,9 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 import json
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
-
+from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms as AES_algorithm
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.backends import default_backend
 
 USER_FOLDER_PATH = folder_path = "users"
 file_path = os.path.join(folder_path, "user.json")
@@ -106,8 +108,7 @@ def generate_key_from_password(password, length):
 
 
 
-def AES_encrypt(plaintext, password):
-    key = generate_key_from_password(password, 16).encode("utf-8")
+def AES_encrypt(plaintext, key):
     if not isinstance(plaintext, str):
         raise TypeError("plaintext must be a string")
     plaintext_bytes = plaintext.encode('utf-8')
@@ -118,14 +119,27 @@ def AES_encrypt(plaintext, password):
     return ciphertext
 
 
-def AES_decrypt(ciphertext, password):
-    key = generate_key_from_password(password, 16).encode("utf-8")
-    ciphertext_bytes = ciphertext.encode('utf-8')
-    cipher = AES.new(key, AES.MODE_ECB)
-    decrypted_bytes = cipher.decrypt(ciphertext_bytes)
-    from Crypto.Util.Padding import unpad
-    plaintext_bytes = unpad(decrypted_bytes, AES.block_size)
-    return plaintext_bytes.decode('utf-8')
+def AES_decrypt(ciphertext, key, iv):
+    cipher_algorithm = {
+        'AES': AES_algorithm.AES(key),
+    }.get('AES'.upper())
+
+    algorithm_upper = 'AES'
+
+    cipher_mode = {
+        'CBC': modes.CBC(iv),
+        'CFB': modes.CFB(iv),
+        'CTR': modes.CTR(iv)
+    }.get('CBC'.upper())
+
+    cipher = Cipher(cipher_algorithm, cipher_mode, backend=default_backend())
+    decryptor = cipher.decryptor()
+
+    # Process file
+    unpadder = padding.PKCS7(cipher_algorithm.block_size).unpadder()
+    final_decrypted = decryptor.finalize()
+    final_unpadded = unpadder.update(final_decrypted) + unpadder.finalize()
+    return final_unpadded
 
 
 def get_private_key(username, password):

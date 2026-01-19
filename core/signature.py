@@ -139,7 +139,6 @@ def sign_file(file_path):
 
     # کدگذاری هدر
     header_json = json.dumps(signature_header).encode('utf-8')
-    header_length = len(header_json).to_bytes(4, byteorder='big')
 
     # نوشتن فایل امضا شده
     with open(output_path, 'wb') as f:

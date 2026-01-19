@@ -281,7 +281,6 @@ def embed_mac_in_file(file_path: str, mac_algorithm: str, key: bytes, output_pat
 
     # کدگذاری هدر
     header_json = json.dumps(mac_header).encode('utf-8')
-    header_length = len(header_json).to_bytes(4, byteorder='big')
 
     # نوشتن فایل جدید با MAC
     with open(output_path, 'wb') as f:

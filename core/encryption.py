@@ -1,40 +1,52 @@
-
-from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms as AES_Algo
-from cryptography.hazmat.decrepit.ciphers import algorithms
-
-from cryptography.hazmat.primitives import padding
-from cryptography.hazmat.backends import default_backend
+from utilities import generate_key_from_password, AES_encrypt, get_public_key
+from set_user import app_config
+from core.mac import embed_mac_in_file
+from core.signature import sign_file
+from core.crypto import RSA_encryption, symmetric_encrypt
 import os
 import json
 from datetime import datetime
-from utilities import generate_key_from_password
-from set_user import app_config
-from .mac import embed_mac_in_file
-from .signature import sign_file
 
 
-def encrypt_file_with_symmetric(input_file, key, algorithm, mode, sender, receiver):
-    # Parameter validation
+def encrypt_file_with_secure_envelope(input_file, sender, receiver, key):
+
     if not os.path.exists(input_file):
         raise FileNotFoundError(f"Input file not found: {input_file}")
 
-    algorithm_upper = algorithm.upper()
-    if algorithm_upper == 'AES':
-        iv_length = 16
-        valid_key_lengths = [16, 24, 32]
-        if len(key) not in valid_key_lengths:
-            raise ValueError("Key must be 16, 24, or 32 bytes for AES")
+    dek = key
+    receiver_public_key = get_public_key(receiver)
+    wrapped_dek = RSA_encryption(dek, receiver_public_key)
 
-    elif algorithm_upper in ('DES', '3DES'):
-        iv_length = 8
-        valid_key_lengths = [8, 16, 24]
-        if len(key) not in valid_key_lengths:
-            raise ValueError("Key must be 8, 16, or 24 bytes for DES/3DES")
+    with open(input_file, 'rb') as f_in:
+        data = f_in.read()
+        encrypted_data = AES_encrypt(data, key)
 
-    else:
-        raise ValueError(f"الگوریتم {algorithm} پشتیبانی نمی‌شود.")
+    header = {
+        'encryption_scheme': 'SECURE_ENVELOPE_AES256_RSA2048',
+        'algorithm': 'AES',
+        'sender': sender,
+        'receiver': receiver,
+        'timestamp': datetime.utcnow().isoformat(),
+        'encrypted_data_size': len(encrypted_data),
+        'dek_size': len(wrapped_dek),
+    }
 
-    # Create custom header
+    header_json = json.dumps(header).encode('utf-8')
+
+    output_file = input_file + '.enc_secure'
+    with open(output_file, 'wb') as f_out:
+        f_out.write(header_json)
+        f_out.write(wrapped_dek)
+        f_out.write(encrypted_data)
+    print(f"File encrypted successfully to: {output_file}")
+    print(f"Encrypted DEK Size: {len(wrapped_dek)} bytes")
+
+
+def encrypt_file_with_symmetric(input_file, key, algorithm, mode, sender, receiver):
+
+    if not os.path.exists(input_file):
+        raise FileNotFoundError(f"Input file not found: {input_file}")
+
     header = {
         'algorithm': algorithm,
         'mode': mode,
@@ -46,70 +58,33 @@ def encrypt_file_with_symmetric(input_file, key, algorithm, mode, sender, receiv
 
     # Convert header to bytes
     header_json = json.dumps(header).encode('utf-8')
-    header_length = len(header_json).to_bytes(4, byteorder='big')
 
-    # Select algorithm and mode
-    cipher_algorithm = {
-        'AES': AES_Algo.AES(key),
-        'DES': algorithms.TripleDES(key),  # Using TripleDES as an example
-        '3DES': algorithms.TripleDES(key)
-    }.get(algorithm.upper())
+    with open(input_file, 'rb') as f_in:
+        file_contents = f_in.read()
 
-    if cipher_algorithm is None:
-        raise ValueError(f"Unsupported algorithm: {algorithm}")
-
-
-    if len(key) < iv_length:
-        raise ValueError(f"طول کلید ({len(key)} بایت) برای IV مورد نیاز ({iv_length} بایت) کافی نیست.")
-
-    iv = key[:iv_length]
-
-    cipher_mode = {
-        'CBC': modes.CBC(iv),
-        'CFB': modes.CFB(iv),
-        'CTR': modes.CTR(iv)
-    }.get(mode.upper())
-
-    if cipher_mode is None:
-        raise ValueError(f"Unsupported encryption mode: {mode}")
-
-    # Create cipher
-    cipher = Cipher(cipher_algorithm, cipher_mode, backend=default_backend())
-    encryptor = cipher.encryptor()
-
-    # Process the file
-    padder = padding.PKCS7(cipher_algorithm.block_size).padder()
-
+    encrypted_payload = symmetric_encrypt(file_contents, key, algorithm, mode)
     with open(input_file, 'rb') as f_in, open(input_file + '.enc', 'wb') as f_out:
-        # Write header (header length + header itself)
-        f_out.write(header_length)
         f_out.write(header_json)
-        f_out.write(iv)  # Write IV
-
-        # Encrypt and write data
-        while chunk := f_in.read(4096):
-            padded_chunk = padder.update(chunk)
-            encrypted_chunk = encryptor.update(padded_chunk)
-            f_out.write(encrypted_chunk)
-
-        # Write final block
-        final_padded = padder.finalize()
-        final_encrypted = encryptor.update(final_padded) + encryptor.finalize()
-        f_out.write(final_encrypted)
+        f_out.write(encrypted_payload)
 
 
-def encrypt_file(file_path, encryption_mode, cipher_mode, target_user, mac_mode = None):
+
+def encrypt_file(file_path, encryption_mode, cipher_mode, receiver, mac_mode = None):
     """
     Encrypt a file using the provided key
     Returns path to the encrypted file
     """
-    username = app_config.username
+    sender = username = app_config.username
     password = app_config.password
     key = generate_key_from_password(password, 16).encode("utf-8")
     embed_mac_in_file(file_path, mac_mode, key, file_path)
     sign_file(file_path)
+
     if encryption_mode == 'AES' or encryption_mode == 'DES' or encryption_mode == '3DES':
-        encrypt_file_with_symmetric(file_path, key, encryption_mode, cipher_mode, username, target_user)
+        encrypt_file_with_symmetric(file_path, key, encryption_mode, cipher_mode, username, receiver)
+
+    if encryption_mode == 'SecureEnvelop':
+        encrypt_file_with_secure_envelope(file_path, sender, receiver, key)
 
 
     output_path = file_path + ".enc"
