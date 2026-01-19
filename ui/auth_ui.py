@@ -97,9 +97,6 @@ class LoginWidget(QWidget):
     def show_crypto_window(self):
         """Show crypto window after successful login"""
         try:
-
-            # ایمپورت در داخل تابع برای جلوگیری از circular import
-
             self.crypto_window = CryptoWidget()
             self.crypto_window.show()
             self.hide()
@@ -129,7 +126,7 @@ class LoginWidget(QWidget):
     def apply_styles(self):
         style_file = QFile("ui/styles.css")
         if not style_file.open(QFile.OpenModeFlag.ReadOnly | QFile.OpenModeFlag.Text):
-            print("فایل استایل پیدا نشد!")
+            print("styles.css not found")
             return
 
         stream = QTextStream(style_file)

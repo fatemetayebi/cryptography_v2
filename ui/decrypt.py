@@ -40,10 +40,6 @@ class DecryptTab(QWidget):
         file_layout.addWidget(self.decrypt_file_btn)
         file_group.setLayout(file_layout)
 
-        # 2. Text Decryption Section
-        text_group = QWidget()
-        text_layout = QVBoxLayout()
-
         self.text_input = QTextEdit()
         self.text_input.setPlaceholderText("Enter encrypted text here...")
 
@@ -55,29 +51,12 @@ class DecryptTab(QWidget):
         key_layout.addWidget(self.key_label)
         key_layout.addWidget(self.key_input)
 
-        # Text decryption button
-        # self.decrypt_text_btn = QPushButton("Decrypt Text")
-        # self.decrypt_text_btn.clicked.connect(self.on_decrypt_text)
-        #
-        # # Result display
-        # self.result_output = QTextEdit()
-        # self.result_output.setReadOnly(True)
-        # self.result_output.setPlaceholderText("Decrypted result will appear here...")
-        #
-        # text_layout.addWidget(self.text_input)
-        # text_layout.addLayout(key_layout)
-        # text_layout.addWidget(self.decrypt_text_btn)
-        # text_layout.addWidget(self.result_output)
-        # text_group.setLayout(text_layout)
-
         # Add sections to main layout
         layout.addWidget(QLabel("File Decryption:"))
         layout.addWidget(file_group)
         layout.addSpacing(20)
-        # layout.addWidget(QLabel("Text Decryption:"))
-        # layout.addWidget(text_group)
-
         self.setLayout(layout)
+
 
     def select_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -93,13 +72,8 @@ class DecryptTab(QWidget):
             self.decrypt_file_btn.setEnabled(True)
             self.show_status("File selected", "success")
 
+
     def on_decrypt_file(self):
-        key = self.key_input.text().strip()
-
-        # if not key:
-        #     self.show_error("Please enter decryption key")
-        #     return
-
         try:
             output_path = decrypt_file(self.file_path)
             self.show_success(
@@ -112,25 +86,6 @@ class DecryptTab(QWidget):
             self.decrypt_file_btn.setEnabled(False)
         except Exception as e:
             self.show_error(f"Decryption failed: {str(e)}")
-
-    # def on_decrypt_text(self):
-    #     text = self.text_input.toPlainText().strip()
-    #     key = self.key_input.text().strip()
-    #
-    #     if not text:
-    #         self.show_error("Please enter text to decrypt")
-    #         return
-    #
-    #     if not key:
-    #         self.show_error("Please enter decryption key")
-    #         return
-    #
-    #     try:
-    #         decrypted = decrypt_text(text, key)
-    #         self.result_output.setPlainText(decrypted)
-    #         self.show_success("Text decrypted successfully!")
-    #     except Exception as e:
-    #         self.show_error(f"Decryption failed: {str(e)}")
 
     def show_success(self, message):
         self.status_label.setStyleSheet("color: #27ae60; font-weight: bold;")

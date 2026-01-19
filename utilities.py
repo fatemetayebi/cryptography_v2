@@ -1,10 +1,10 @@
 import hashlib
 import base64
 import os
+import json
 import tempfile
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
-import json
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms as AES_algorithm
 from cryptography.hazmat.primitives import padding
@@ -71,7 +71,6 @@ def check_password(plain_password, hashed_password):
         return False
 
 
-
 def generate_key_from_password(password, length):
     print(f'password: {password}, length: {length}')
     """
@@ -105,7 +104,6 @@ def generate_key_from_password(password, length):
 
     except Exception as e:
         raise RuntimeError(f"Key generation failed: {str(e)}")
-
 
 
 def AES_encrypt(plaintext, key):
@@ -170,9 +168,6 @@ def get_public_key(username):
     return public_key
 
 
-
-import json
-
 def get_file_header(filename):
     header = ""
     with open(filename, 'rb') as f:
@@ -182,8 +177,6 @@ def get_file_header(filename):
         json_data = content[start:end + 1]
         header = json.loads(json_data.decode('utf-8'))
         return header
-
-
 
 
 def clean_main_content_in_place(filename):
@@ -196,27 +189,23 @@ def clean_main_content_in_place(filename):
 
     mac_separator_pos = full_data.find(mac_separator)
     if mac_separator_pos == -1:
-        raise ValueError("جداکننده MAC یافت نشد.")
+        raise ValueError("MAC separator not found")
 
     content_separator_pos = full_data.find(content_separator, mac_separator_pos)
     if content_separator_pos == -1:
-        raise ValueError("جداکننده محتوا یافت نشد.")
+        raise ValueError("Content separator not found")
 
     start_of_content = content_separator_pos + len(content_separator)
     main_content = full_data[start_of_content:len(full_data)]
 
-    # ۳. بازنویسی فایل اصلی با محتوای تمیز شده (استفاده از فایل موقت برای ایمنی)
     temp_file_descriptor, temp_filename = tempfile.mkstemp()
 
     try:
         with os.fdopen(temp_file_descriptor, 'wb') as tmp_f:
             tmp_f.write(main_content)
-
-        # جایگزینی فایل اصلی با فایل موقت
         os.replace(temp_filename, filename)
 
     except Exception as e:
-        # اگر مشکلی در نوشتن پیش آمد، فایل موقت را پاک کن
         os.remove(temp_filename)
-        raise Exception(f"خطا در بازنویسی فایل: {str(e)}")
+        raise Exception(f" Error during cleaning file {str(e)}")
 

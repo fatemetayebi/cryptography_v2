@@ -50,7 +50,7 @@ class CryptoWidget(QWidget):
     def apply_styles(self):
         style_file = QFile("ui/styles.css")
         if not style_file.open(QFile.OpenModeFlag.ReadOnly | QFile.OpenModeFlag.Text):
-            print("فایل استایل پیدا نشد!")
+            print("styles.css not found")
             return
 
         stream = QTextStream(style_file)

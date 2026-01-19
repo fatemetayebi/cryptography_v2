@@ -1,5 +1,5 @@
 import os
-from utilities import get_file_header, generate_key_from_password, clean_main_content_in_place, get_private_key, AES_decrypt
+from utilities import get_file_header, generate_key_from_password, clean_main_content_in_place, get_private_key
 from set_user import app_config
 from core.mac import extract_and_verify_mac
 from core.signature import verify_file_signature
@@ -112,7 +112,6 @@ def decrypt_file(file_path):
 
     if not mac_result['is_valid'] or not sign_result['is_valid']:
         raise Exception("mac or signature verification failed")
-
 
     print(f'mac_result: {mac_result}, sign_result: {sign_result}')
 

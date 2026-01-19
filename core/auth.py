@@ -1,14 +1,8 @@
 from cryptography.hazmat.primitives.asymmetric import rsa
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad
-import base64
 from cryptography.hazmat.primitives import serialization
-import os
 import json
-from utilities import (USER_FILE_PATH, USER_FOLDER_PATH, hash, generate_key_from_password,
-                       check_password, AES_encrypt, AES_decrypt, get_user_from_file, file_path)
-from cryptography.hazmat.primitives.serialization import PrivateFormat, Encoding, BestAvailableEncryption, \
-        NoEncryption
+from utilities import USER_FILE_PATH, hash, check_password, get_user_from_file
+from cryptography.hazmat.primitives.serialization import PrivateFormat, Encoding, BestAvailableEncryption
 
 
 def generate_rsa_private_public_keys(password, key_size=2048):

@@ -11,7 +11,6 @@ import shutil
 from PyQt6.QtWidgets import QFileDialog
 
 
-
 class EncryptTab(QWidget):
     def __init__(self, status_label, tab_widget):
         super().__init__()
@@ -24,12 +23,10 @@ class EncryptTab(QWidget):
         self.setup_ui()
 
     def load_users(self):
-        """بارگذاری لیست کاربران از فایل JSON"""
         try:
             if os.path.exists(self.users_file):
                 with open(self.users_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    # استخراج نام کاربران از آرایه JSON
                     if isinstance(data, list):
                         self.users = [user["username"] for user in data if "username" in user]
                     else:
@@ -123,21 +120,17 @@ class EncryptTab(QWidget):
         layout.addWidget(file_group)
         self.setLayout(layout)
 
-        # تنظیم اولیه وضعیت المان‌ها
         self.on_encryption_mode_changed()
 
     def on_encryption_mode_changed(self):
-        """تغییر وضعیت المان‌ها بر اساس مود رمزنگاری انتخاب شده"""
         encryption_mode = self.encryption_combo.currentText()
 
         if encryption_mode in ["RSA", "SecureEnvelop"]:
-            # فعال کردن انتخاب کاربر و غیرفعال کردن فیلد کلید
             self.user_combo.setEnabled(True)
             self.key_input.setEnabled(False)
             self.key_input.clear()
             self.cipher_combo.setEnabled(False)
         else:  # symmetric
-            # غیرفعال کردن انتخاب کاربر و فعال کردن فیلد کلید
             self.user_combo.setEnabled(False)
             self.key_input.setEnabled(True)
             self.cipher_combo.setEnabled(True)
@@ -151,24 +144,15 @@ class EncryptTab(QWidget):
         )
 
         if file_path:
-            # 1. تعیین مسیر فایل کپی شده در همان دایرکتوری اصلی
             directory = os.path.dirname(file_path)
             filename = os.path.basename(file_path)
-
-            # ساخت نام فایل کپی (مثلاً original_name.copy.ext)
             base, ext = os.path.splitext(filename)
             temp_path = os.path.join(directory, f"{base}_copy{ext}")
 
-            # اگر فایل کپی از قبل وجود داشت، آن را پاک کنید یا نام جدیدی بدهید.
-            # در این مثال، ما فرض می‌کنیم که بازنویسی امن است یا باید وجود آن را چک کنیم.
-            # برای سادگی، از overwrite (بازنویسی ضمنی توسط copy2) استفاده می‌کنیم.
-
             try:
-                # 2. کپی کردن محتوای فایل اصلی به مسیر جدید (همان دایرکتوری)
                 shutil.copy2(file_path, temp_path)
-
-                self.file_path = temp_path  # مسیر فایل کپی شده را ذخیره می‌کنیم
-                self.file_label.setText(filename)  # نام اصلی فایل را نمایش می‌دهیم
+                self.file_path = temp_path
+                self.file_label.setText(filename)
                 self.encrypt_file_btn.setEnabled(True)
                 self.show_status(f"Created local copy: {temp_path}", "success")
 
@@ -183,21 +167,6 @@ class EncryptTab(QWidget):
         encryption_mode = self.encryption_combo.currentText()
         mac_mode = self.mac_combo.currentText()
         cipher_mode = self.cipher_combo.currentText()
-        # if encryption_mode in ["RSA", "SecureEnvelop"]:
-        #     print('5555555555')
-        #     # استفاده از کاربر انتخاب شده برای RSA و SecureEnvelop
-        #     selected_user = self.user_combo.currentText()
-        #     if selected_user == "No users available" or not selected_user:
-        #         self.show_error("Please select a user for RSA/SecureEnvelop encryption")
-        #         return
-        #
-        # else:
-        #     print('777777777777')
-        #     # استفاده از کلید وارد شده برای symmetric
-        #     print('8888888888888')
-        #     # if not key:
-        #     #     self.show_error("Please enter encryption key for symmetric mode")
-        #     #     return
         try:
             output_path = encrypt_file(
                 self.file_path,
@@ -230,13 +199,11 @@ class EncryptTab(QWidget):
             self.show_error(f"Encryption failed: {str(e)}")
 
     def refresh_users(self):
-        """بارگذاری مجدد لیست کاربران"""
         self.load_users()
         current_text = self.user_combo.currentText()
         self.user_combo.clear()
         self.user_combo.addItems(self.users if self.users else ["No users available"])
 
-        # تلاش برای حفظ انتخاب قبلی کاربر
         if current_text in self.users:
             self.user_combo.setCurrentText(current_text)
 
