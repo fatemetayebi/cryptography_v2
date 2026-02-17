@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 )
 import json
 import os
-from core.encryption import encrypt_file
+from core.RSA_encryption_utils import encrypt_file
 import tempfile
 import shutil
 from PyQt6.QtWidgets import QFileDialog

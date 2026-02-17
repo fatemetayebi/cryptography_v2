@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QMessageBox
 )
 from PyQt6.QtCore import Qt, QFile, QTextStream
-from core.decryption import decrypt_file
+from core.RSA_decryption_utils import decrypt_file
 
 
 class DecryptTab(QWidget):

@@ -11,16 +11,49 @@ from cryptography.hazmat.primitives import hashes
 # ---------------------------------------------------------------------------------------------------
 
 
+from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms as AES_algorithm
+from cryptography.hazmat.decrepit.ciphers import algorithms
+from cryptography.hazmat.primitives.asymmetric import padding as rsa_padding
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import hashes
+
+
 def RSA_encryption(data, receiver_public_key) -> bytes:
-    encrypted_data = receiver_public_key.encrypt(
-        data,
-        rsa_padding.OAEP(
-            mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
+    """
+    Encrypt data using RSA with OAEP padding
+    """
+    try:
+        # Calculate maximum data size for this key
+        key_size_bytes = receiver_public_key.key_size // 8
+        max_data_size = key_size_bytes - 66  # For OAEP with SHA256
+
+        if len(data) > max_data_size:
+            raise ValueError(
+                f"Data too large for RSA encryption. "
+                f"Max: {max_data_size} bytes, Actual: {len(data)} bytes"
+            )
+
+        encrypted_data = receiver_public_key.encrypt(
+            data,
+            rsa_padding.OAEP(
+                mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
         )
-    )
-    return encrypted_data
+
+        print(f"✅ RSA encryption successful")
+        print(f"📊 Input size: {len(data)} bytes")
+        print(f"📊 Output size: {len(encrypted_data)} bytes")
+        print(f"📊 Key size: {receiver_public_key.key_size} bits")
+
+        return encrypted_data
+
+    except Exception as e:
+        print(f"❌ RSA encryption failed: {e}")
+        raise
 
 
 def symmetric_encrypt(data, key, algorithm, mode):
@@ -68,16 +101,54 @@ def symmetric_encrypt(data, key, algorithm, mode):
 # ---------------------------------------------------------------------------------------------------
 
 
-def RSA_decryption(data, private_key):
-    decrypt_data = private_key.decrypt(
-        data,
-        rsa_padding.OAEP(
-            mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
+
+def RSA_decryption(encrypted_data, private_key):
+    """
+    Decrypt data using RSA with OAEP padding
+    """
+    try:
+        expected_size = private_key.key_size // 8
+        actual_size = len(encrypted_data)
+
+        print(f"🔍 RSA Decryption Debug:")
+        print(f"   Expected size: {expected_size} bytes")
+        print(f"   Actual size: {actual_size} bytes")
+
+        # Check if size matches
+        if actual_size != expected_size:
+            print(f"⚠️ Size mismatch! Attempting to handle...")
+
+            if actual_size < expected_size:
+                # Add padding if data is smaller
+                padding_needed = expected_size - actual_size
+                encrypted_data = b'\x00' * padding_needed + encrypted_data
+                print(f"   Added {padding_needed} bytes of padding")
+            elif actual_size > expected_size:
+                # Truncate if data is larger
+                encrypted_data = encrypted_data[:expected_size]
+                print(f"   Trimmed data to {expected_size} bytes")
+
+        # Decrypt the data
+        decrypted_data = private_key.decrypt(
+            encrypted_data,
+            rsa_padding.OAEP(
+                mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
         )
-    )
-    return decrypt_data
+
+        print(f"✅ RSA decryption successful")
+        print(f"📊 Decrypted size: {len(decrypted_data)} bytes")
+
+        return decrypted_data
+
+    except Exception as e:
+        print(f"❌ RSA decryption failed: {e}")
+        print(f"   Key size: {private_key.key_size} bits")
+        print(f"   Data size: {len(encrypted_data)} bytes")
+        raise
+
 
 
 def symmetric_decrypt(encrypted_data, key, algorithm, mode):
