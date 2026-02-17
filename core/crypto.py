@@ -69,6 +69,26 @@ def symmetric_encrypt(data, key, algorithm, mode):
 
 
 def RSA_decryption(data, private_key):
+    expected_size = private_key.key_size // 8
+    encrypted_data = data
+    actual_size = len(encrypted_data)
+
+    print(f"Debug - Expected size: {expected_size}, Actual size: {actual_size}")
+
+    if actual_size != expected_size:
+        # احتمالات مختلف را بررسی کن
+        if actual_size < expected_size:
+            # ممکن است padding نیاز داشته باشد
+            padding_needed = expected_size - actual_size
+            encrypted_data = b'\x00' * padding_needed + encrypted_data
+            print(f"Added {padding_needed} bytes padding")
+        elif actual_size > expected_size:
+            encrypted_data = encrypted_data[:expected_size]
+            print(f"Trimmed data to {expected_size} bytes")
+        else:
+            raise ValueError(
+            f"Data size mismatch: {actual_size} != {expected_size}")
+    data = encrypted_data
     decrypt_data = private_key.decrypt(
         data,
         rsa_padding.OAEP(

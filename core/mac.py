@@ -154,6 +154,7 @@ def embed_mac_in_file(file_path: str, mac_algorithm: str, key: bytes, output_pat
 
     if output_path is None:
         output_path = file_path
+        # output_path = file_path + '.enc'
 
     mac_result = calculate_file_mac(file_path, mac_algorithm, key, **kwargs)
 

@@ -7,6 +7,49 @@ from core.signature import verify_file_signature
 from core.crypto import RSA_decryption, symmetric_decrypt
 
 
+def decrypt_RSA(input_file, header):
+    user = app_config.username
+    password = app_config.password
+
+    if not os.path.exists(input_file):
+        raise FileNotFoundError(f"Encrypted file not found: {input_file}")
+
+    # Read header
+    print(f'Header: {header}')
+    print(f'receiver: {header["receiver"]}, user: {user}')
+
+    if header['receiver'] != user:
+        raise PermissionError(f"You ({user}) don't have permission to decrypt {input_file}")
+
+    # Read entire file
+    with open(input_file, 'rb') as f:
+        content = f.read()
+
+    # Find end of JSON header
+    try:
+        # Find the first closing brace
+        header_end = content.find(b'}') + 1
+
+        # Read encrypted data
+        encrypted_data_start = header_end
+        encrypted_data = content[encrypted_data_start:]
+
+    except Exception as e:
+        raise ValueError(f"Error parsing encrypted file: {str(e)}")
+
+    # Decrypt main data
+    user_private_key = get_private_key(user, password)
+    main_data = RSA_decryption(encrypted_data, user_private_key)
+
+    # Create output file (different name)
+    output_file = input_file
+    with open(output_file, 'wb') as f_out:
+        f_out.write(main_data)
+
+    return output_file
+
+
+
 def decrypt_secure_envelope(input_file):
     user = app_config.username
     password = app_config.password
@@ -29,10 +72,6 @@ def decrypt_secure_envelope(input_file):
     try:
         # Find the first closing brace
         header_end = content.find(b'}') + 1
-
-        # Read header accurately
-        header_json = content[:header_end]
-        header = json.loads(header_json.decode('utf-8'))
 
         # Read wrapped DEK
         wrapped_dek_start = header_end
@@ -116,22 +155,50 @@ def decrypt_file(file_path):
     encryption_mode = header['algorithm']
     print(f'encryption_mode: {encryption_mode}')
 
-    if encryption_mode == 'AES' or encryption_mode == 'DES' or encryption_mode == '3DES':
-        decrypt_file_with_symmetric(file_path, key)
-    elif encryption_mode == 'SecureEnvelope':
-        decrypt_secure_envelope(file_path)
+    first_decryption_algorithm = ['AES', 'DES', '3DES', 'SecureEnvelope']
+
+    if encryption_mode in first_decryption_algorithm:
+
+        if encryption_mode == 'AES' or encryption_mode == 'DES' or encryption_mode == '3DES':
+            print(f'44444444444444444444444444 encryption mode{encryption_mode}')
+            decrypt_file_with_symmetric(file_path, key)
+        elif encryption_mode == 'SecureEnvelope':
+            decrypt_secure_envelope(file_path)
+
+        mac_result = extract_and_verify_mac(file_path, key)
+        sign_result = verify_file_signature(file_path)
+
+        if not mac_result['is_valid'] or not sign_result['is_valid']:
+            raise Exception("MAC or signature verification failed")
+
+        else:
+            clean_main_content_in_place(file_path, mac_result)
+
+    else:
+        try:
+            mac_result = extract_and_verify_mac(file_path, key)
+            sign_result = verify_file_signature(file_path)
+
+            binary_data = mac_result['original_content']
+            json_end = binary_data.find(b'}') + 1
+
+            json_part = binary_data[:json_end]
+
+            metadata = json.loads(json_part.decode('utf-8'))
+
+            if metadata['algorithm'] == 'RSA':
+                decrypt_RSA(file_path, metadata)
+
+        except Exception as e:
+            raise ValueError(f"Error parsing encrypted file: {str(e)}")
 
     if file_path.endswith('.enc'):
         file_path = file_path[:-4]  # Remove .enc extension
 
-    mac_result = extract_and_verify_mac(file_path, key)
-    sign_result = verify_file_signature(file_path)
-    print(f'mac_result: {mac_result}, sign_result: {sign_result}')
+    # mac_result = extract_and_verify_mac(file_path, key)
+    # sign_result = verify_file_signature(file_path)
 
-    if not mac_result['is_valid'] or not sign_result['is_valid']:
-        raise Exception("MAC or signature verification failed")
-    else:
-        clean_main_content_in_place(file_path, mac_result)
+    print(f'mac_result: {mac_result}, sign_result: {sign_result}')
 
 
     return file_path

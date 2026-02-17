@@ -80,6 +80,7 @@ def sign_file(file_path):
     hash_algorithm = 'SHA256'
     if output_path is None:
         output_path = file_path + ".sig"
+        # output_path = file_path + ".enc"
 
     file_hash = calculate_file_hash(file_path, hash_algorithm)
 

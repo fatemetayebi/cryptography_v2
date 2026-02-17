@@ -8,6 +8,31 @@ import json
 from datetime import datetime
 
 
+def encrypt_file_with_RSA(input_file, sender, receiver):
+    receiver_public_key = get_public_key(receiver)
+    with open(input_file, 'rb') as f_in:
+        data = f_in.read()
+    if len(data) >= 428:
+        raise Exception("Too much data for RSA encryption")
+
+    encrypted_data = RSA_encryption(data, receiver_public_key)
+
+    header = {
+        'algorithm': 'RSA',
+        'sender': sender,
+        'receiver': receiver,
+        'timestamp': datetime.utcnow().isoformat(),
+        'encrypted_data_size': len(encrypted_data),
+    }
+
+    header_json = json.dumps(header).encode('utf-8')
+
+    output_file = input_file + '.enc'
+    with open(output_file, 'wb') as f_out:
+        f_out.write(header_json)
+        f_out.write(encrypted_data)
+
+
 def encrypt_file_with_secure_envelope(input_file, sender, receiver, key):
 
     if not os.path.exists(input_file):
@@ -78,6 +103,11 @@ def encrypt_file(file_path, encryption_mode, cipher_mode, receiver, mac_mode = N
     sender = username = app_config.username
     password = app_config.password
     key = generate_key_from_password(password, 16).encode("utf-8")
+
+    if encryption_mode == 'RSA':
+        encrypt_file_with_RSA(file_path, sender, receiver)
+        file_path = file_path + '.enc'
+
     embed_mac_in_file(file_path, mac_mode, key, file_path)
     sign_file(file_path)
 
