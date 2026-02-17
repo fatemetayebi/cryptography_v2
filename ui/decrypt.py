@@ -85,7 +85,6 @@ class DecryptTab(QWidget):
             self.file_label.setText("No file selected")
             self.decrypt_file_btn.setEnabled(False)
         except Exception as e:
-            print(f'\n##################################\n{e}\n##################################')
             self.show_error(f"Decryption failed: {str(e)}")
 
     def show_success(self, message):
